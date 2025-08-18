@@ -1,21 +1,364 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Cipher Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Cipher AI Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00d4ff, #5a67d8, #ed64a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        }
+        
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .section-icon {
+            font-size: 1.8rem;
+        }
+        
+        .file-list {
+            list-style: none;
+        }
+        
+        .file-item {
+            margin-bottom: 0.8rem;
+        }
+        
+        .file-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            text-decoration: none;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .file-link:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .file-icon {
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+        
+        .file-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .file-type {
+            background: rgba(0, 212, 255, 0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #00d4ff;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            min-width: 120px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        
+        .stat-label {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                gap: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Cipher AI Documentation</h1>
-    
-    <h2>Shared Utils</h2>
-    <ul>
-        <li><a href="cipher-docs/shared-utils/utils.txt">utils.ts</a></li>
-        <li><a href="cipher-docs/shared-utils/types.txt">types.ts</a></li>
-        <li><a href="cipher-docs/shared-utils/displayUtils.txt">displayUtils.ts</a></li>
-    </ul>
-    
-    <h2>Brain Files</h2>
-    <ul>
-        <li>Coming soon...</li>
-    </ul>
+    <div class="container">
+        <header class="header">
+            <h1>🧠 Cipher AI Documentation</h1>
+            <p>Revolutionary autonomous learning system for Maestro.ai</p>
+            <p>Made with 💛 by AvaTheArchitect + Cipher AI</p>
+        </header>
+        
+        <div class="grid">
+            <!-- Brain Files Section -->
+            <section class="section">
+                <h2><span class="section-icon">🧠</span>Brain Files</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/BrainConnector.txt" class="file-link">
+                            <span class="file-icon">🔗</span>
+                            <span class="file-name">BrainConnector</span>
+                            <span class="file-type">CORE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/BrainDevOpsBridge.txt" class="file-link">
+                            <span class="file-icon">🌉</span>
+                            <span class="file-name">BrainDevOpsBridge</span>
+                            <span class="file-type">BRIDGE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/CipherBrain.txt" class="file-link">
+                            <span class="file-icon">🧠</span>
+                            <span class="file-name">CipherBrain</span>
+                            <span class="file-type">CORE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/CipherBrainInterface.txt" class="file-link">
+                            <span class="file-icon">⚡</span>
+                            <span class="file-name">CipherBrainInterface</span>
+                            <span class="file-type">V20</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/MusicDevIntelligence.txt" class="file-link">
+                            <span class="file-icon">🎵</span>
+                            <span class="file-name">MusicDevIntelligence</span>
+                            <span class="file-type">MUSIC</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/brain-files/SelfGenerationSystem.txt" class="file-link">
+                            <span class="file-icon">🔄</span>
+                            <span class="file-name">SelfGenerationSystem</span>
+                            <span class="file-type">AUTO</span>
+                        </a>
+                    </li>
+                </ul>
+            </section>
+            
+            <!-- Shared Utils Section -->
+            <section class="section">
+                <h2><span class="section-icon">🛠️</span>Shared Utils</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/utils.txt" class="file-link">
+                            <span class="file-icon">⚙️</span>
+                            <span class="file-name">utils</span>
+                            <span class="file-type">CORE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/displayUtils.txt" class="file-link">
+                            <span class="file-icon">🎨</span>
+                            <span class="file-name">displayUtils</span>
+                            <span class="file-type">UI</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/musicUtils.txt" class="file-link">
+                            <span class="file-icon">🎵</span>
+                            <span class="file-name">musicUtils</span>
+                            <span class="file-type">MUSIC</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/templateGenerators.txt" class="file-link">
+                            <span class="file-icon">📄</span>
+                            <span class="file-name">templateGenerators</span>
+                            <span class="file-type">GEN</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/typeGuards.txt" class="file-link">
+                            <span class="file-icon">🛡️</span>
+                            <span class="file-name">typeGuards</span>
+                            <span class="file-type">SAFE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/typeHelpers.txt" class="file-link">
+                            <span class="file-icon">🔧</span>
+                            <span class="file-name">typeHelpers</span>
+                            <span class="file-type">HELP</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/shared-utils/types.txt" class="file-link">
+                            <span class="file-icon">📝</span>
+                            <span class="file-name">types</span>
+                            <span class="file-type">TYPES</span>
+                        </a>
+                    </li>
+                </ul>
+            </section>
+            
+            <!-- Handlers Section -->
+            <section class="section">
+                <h2><span class="section-icon">⚡</span>V20 Ready Handlers</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/analyzeCurrentFileHandler.txt" class="file-link">
+                            <span class="file-icon">🔍</span>
+                            <span class="file-name">analyzeCurrentFileHandler</span>
+                            <span class="file-type">CORE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/showRouteTreeHandler.txt" class="file-link">
+                            <span class="file-icon">🌳</span>
+                            <span class="file-name">showRouteTreeHandler</span>
+                            <span class="file-type">ROUTE</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/generateMusicComponentHandler.txt" class="file-link">
+                            <span class="file-icon">🎵</span>
+                            <span class="file-name">generateMusicComponentHandler</span>
+                            <span class="file-type">MUSIC</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/generateGuitarComponentHandler.txt" class="file-link">
+                            <span class="file-icon">🎸</span>
+                            <span class="file-name">generateGuitarComponentHandler</span>
+                            <span class="file-type">GUITAR</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/analyzeGuitarComponentsHandler.txt" class="file-link">
+                            <span class="file-icon">🔍</span>
+                            <span class="file-name">analyzeGuitarComponentsHandler</span>
+                            <span class="file-type">GUITAR</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/autoFixCurrentFileHandler.txt" class="file-link">
+                            <span class="file-icon">🔧</span>
+                            <span class="file-name">autoFixCurrentFileHandler</span>
+                            <span class="file-type">FIX</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="cipher-docs/handlers/analyzeRoutesHandler.txt" class="file-link">
+                            <span class="file-icon">🛣️</span>
+                            <span class="file-name">analyzeRoutesHandler</span>
+                            <span class="file-type">ROUTE</span>
+                        </a>
+                    </li>
+                </ul>
+            </section>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">6</div>
+                <div class="stat-label">Brain Files</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">7</div>
+                <div class="stat-label">Shared Utils</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">7</div>
+                <div class="stat-label">V20 Handlers</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">64K+</div>
+                <div class="stat-label">Lines of Code</div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
