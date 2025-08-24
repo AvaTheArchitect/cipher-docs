@@ -47,9 +47,7 @@ async function performBrainLearning(
     const { initializeBrainSystem } = await import("../../shared/utils");
     const initialized = await initializeBrainSystem();
     console.log(
-      `🧠 [v20] Brain initialization result: ${
-        initialized ? "✅ SUCCESS" : "❌ FAILED"
-      }`
+      `🧠 [v20] Brain initialization result: ${initialized ? "✅ SUCCESS" : "❌ FAILED"}`
     );
   } catch (initError) {
     console.log(`🧠 [v20] Brain initialization failed: ${initError}`);
@@ -272,9 +270,7 @@ export class MaestroGuitarModuleBuilder {
         try {
           const brainInterface = getBrainInterface();
           console.log(
-            `🧠 Alternative brain check: ${
-              brainInterface ? "Available" : "Not available"
-            }`
+            `🧠 Alternative brain check: ${brainInterface ? "Available" : "Not available"}`
           );
         } catch (error) {
           console.log(`🧠 Brain interface error: ${error}`);
@@ -1188,9 +1184,7 @@ class ${className}Processor extends AudioWorkletProcessor {
 }
 
 // Register the processor
-registerProcessor('${fileName
-      .toLowerCase()
-      .replace(/worklet$/, "")}-processor', ${className}Processor);
+registerProcessor('${fileName.toLowerCase().replace(/worklet$/, "")}-processor', ${className}Processor);
 
 // Main Thread Interface
 export class ${className} {
@@ -1815,9 +1809,7 @@ export default ${camelCaseVar};
     console.log(`🎯 Final modules:`);
     Array.from(moduleMap.values()).forEach((m) =>
       console.log(
-        `  ${m.name}: ${m.templateSource}, isUpdate: ${
-          m.isUpdate
-        }, desc: "${m.description.substring(0, 50)}..."`
+        `  ${m.name}: ${m.templateSource}, isUpdate: ${m.isUpdate}, desc: "${m.description.substring(0, 50)}..."`
       )
     );
 
@@ -1937,8 +1929,8 @@ export default ${camelCaseVar};
         template.length > 2000
           ? "high"
           : template.length > 1000
-          ? "medium"
-          : "low";
+            ? "medium"
+            : "low";
 
       return {
         name: this.sanitizeModuleName(name),
@@ -2147,9 +2139,7 @@ export default ${camelCaseVar};
       await fs.promises.writeFile(finalFilePath, template.content);
 
       this.outputChannel.appendLine(
-        `✅ ${module.name} ${
-          isUpdate ? "updated" : "built"
-        } successfully at: ${finalFilePath}`
+        `✅ ${module.name} ${isUpdate ? "updated" : "built"} successfully at: ${finalFilePath}`
       );
       console.log(
         `✅ Module ${isUpdate ? "updated" : "built"}: ${finalFilePath}`
@@ -3511,32 +3501,13 @@ describe('${module.name}', () => {
                         (module) => `
                         <li class="module-item">
                             <strong>${module.name}</strong> 
-                            <span style="color: #666;">(.${
-                              module.moduleType === "component" ||
-                              module.moduleType === "hook"
-                                ? "tsx"
-                                : "ts"
-                            })</span>
-                            ${
-                              module.hasSVG
-                                ? '<span style="color: #3498db; font-weight: bold;">[SVG]</span>'
-                                : ""
-                            }
-                            ${
-                              module.moduleType === "engine"
-                                ? '<span style="color: #e67e22; font-weight: bold;">[ENGINE]</span>'
-                                : ""
-                            }
-                            ${
-                              module.moduleType === "worklet"
-                                ? '<span style="color: #9b59b6; font-weight: bold;">[WORKLET]</span>'
-                                : ""
-                            }
+                            <span style="color: #666;">(.${module.moduleType === "component" || module.moduleType === "hook" ? "tsx" : "ts"})</span>
+                            ${module.hasSVG ? '<span style="color: #3498db; font-weight: bold;">[SVG]</span>' : ""}
+                            ${module.moduleType === "engine" ? '<span style="color: #e67e22; font-weight: bold;">[ENGINE]</span>' : ""}
+                            ${module.moduleType === "worklet" ? '<span style="color: #9b59b6; font-weight: bold;">[WORKLET]</span>' : ""}
                             <br>${module.description}
                             <br><small>Path: ${module.path}</small>
-                            <br><span class="template-source">Source: ${
-                              module.templateSource || "generated"
-                            }</span>
+                            <br><span class="template-source">Source: ${module.templateSource || "generated"}</span>
                         </li>
                     `
                       )
@@ -3547,9 +3518,7 @@ describe('${module.name}', () => {
                     <h3>🚀 Next Steps for Maestro.ai Guitar Practice</h3>
                     <p>1. ✅ SVG-based interactive tablature components built</p>
                     <p>2. ✅ Audio engine architecture with worklets ready</p>
-                    <p>3. Install dependencies: ${buildPlan.dependencies.join(
-                      ", "
-                    )}</p>
+                    <p>3. Install dependencies: ${buildPlan.dependencies.join(", ")}</p>
                     <p>4. Test SVG interactivity and audio synchronization</p>
                     <p>5. Integrate Tone.js hooks with audio engines</p>
                     <p>6. Deploy professional audio architecture to production</p>
