@@ -296,12 +296,6 @@ export class MaestroGuitarModuleBuilder {
       await this.executeBuildPlan(buildPlan);
       console.log("✅ Build plan execution completed");
 
-      // ✅ v20 Brain Learning: Build plan execution success
-      await performBrainLearning("build-plan-execution", true, {
-        templatesFound: specs.starterTemplates.length,
-        richTemplatesFound: specs.richTemplates.size,
-      });
-
       // 🎯 NEW: Create additional files if specified (Test #3A)
       if (specs.createFiles && specs.createFiles.length > 0) {
         const maestroRoot = findMaestroProjectRoot();
@@ -310,11 +304,6 @@ export class MaestroGuitarModuleBuilder {
           console.log(
             `📁 Created ${specs.createFiles.length} additional files`
           );
-
-          // ✅ v20 Brain Learning: File creation success
-          await performBrainLearning("file-creation", true, {
-            filesCreated: specs.createFiles.length,
-          });
         }
       }
 
@@ -3598,6 +3587,11 @@ describe('${module.name}', () => {
 
 export async function maestroGuitarModuleBuilderHandler(): Promise<void> {
   try {
+    const protectionResult = protectMaestroGuitarInstallation();
+    console.log(
+      `🛡️ Protection applied: ${protectionResult ? "✅ Active" : "❌ Failed"}`
+    );
+
     const builder = new MaestroGuitarModuleBuilder();
     await builder.buildMaestroGuitarModules();
 
@@ -3605,10 +3599,6 @@ export async function maestroGuitarModuleBuilderHandler(): Promise<void> {
       "✅ Maestro.ai guitar practice modules built successfully with SVG architecture and audio engine support!"
     );
   } catch (error) {
-    // ❌ v20 Brain Learning: Handler failure
-    await performBrainLearning("maestro-guitar-handler", false, {
-      error: error instanceof Error ? error.message : String(error),
-    });
     vscode.window.showErrorMessage(
       `❌ Error building Maestro.ai guitar modules: ${error}`
     );

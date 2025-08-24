@@ -1,0 +1,3612 @@
+// 🎸 Enhanced Maestro.ai Guitar Practice Module Builder Handler - SVG Architecture + Audio Engine Update
+// .vscode-extensions/cipher-autonomous-dev/src/handlers/music/maestroGuitarModuleBuilderHandler.ts
+
+import * as fs from "fs";
+import * as path from "path";
+import * as vscode from "vscode";
+import { displayBrainSuggestions } from "../../shared/displayUtils";
+import {
+  createIndexFile,
+  findMaestroProjectRoot,
+  protectMaestroGuitarInstallation,
+  shouldFolderHaveIndex,
+} from "../../shared/indexSyncUtils";
+import { generateMusicHandlerTemplate } from "../../shared/templateGenerators";
+import {
+  getBrainInterface,
+  isBrainConnected,
+  shareAnalysisData,
+} from "../../shared/utils";
+// 🧠** KEEP FOR All HANDLER FILES— Brain Enhanced **
+import { BrainConnector } from "../../brain/BrainConnector";
+
+// 🛡️ PROTECTION TEST - Quick verification
+console.log("🔧 Testing protection...");
+console.log(
+  "📁 Project:",
+  findMaestroProjectRoot() ? "Found ✅" : "Not found ❌"
+);
+console.log(
+  "🛡️ Protection:",
+  protectMaestroGuitarInstallation() ? "Working ✅" : "Failed ❌"
+);
+
+// ✅ UPGRADE TO FULL v20 BRAIN LEARNING:
+async function performBrainLearning(
+  action: string,
+  success: boolean,
+  metadata: any = {}
+): Promise<void> {
+  console.log(
+    `🚀 [v20] MaestroGuitarModuleBuilder Brain Learning ENTRY - Action: ${action}, Success: ${success}`
+  );
+
+  // ✅ v20 Brain initialization
+  console.log(`🧠 [v20] CRITICAL FIX: Calling initializeBrainSystem()...`);
+  try {
+    const { initializeBrainSystem } = await import("../../shared/utils");
+    const initialized = await initializeBrainSystem();
+    console.log(
+      `🧠 [v20] Brain initialization result: ${initialized ? "✅ SUCCESS" : "❌ FAILED"}`
+    );
+  } catch (initError) {
+    console.log(`🧠 [v20] Brain initialization failed: ${initError}`);
+  }
+
+  // ✅ Brain learning
+  try {
+    const brainInterface = getBrainInterface();
+    if (brainInterface) {
+      await brainInterface.learnFromAction(
+        action,
+        success ? "success" : "failure",
+        {
+          handlerName: "MaestroGuitarModuleBuilder",
+          version: "v20-UNIFIED",
+          ...metadata,
+        }
+      );
+      console.log(`✅ [v20] Brain learning SUCCESS for ${action}`);
+    }
+  } catch (error) {
+    console.log(`❌ [v20] Brain learning failed: ${error}`);
+  }
+}
+
+// 🔧 ENHANCED: Updated interfaces for rich template processing + SVG architecture
+interface ModuleSpec {
+  name: string;
+  type: "component" | "hook" | "util" | "test" | "engine" | "worklet"; // 🆕 Added engine/worklet
+  hasJSX: boolean;
+  isReactComponent: boolean;
+  path: string;
+  template?: string;
+  starterCode?: string;
+}
+
+interface SpecificationData {
+  requirements: string[];
+  modules: string[];
+  features: string[];
+  constraints: string[];
+  starterTemplates: Array<{ code: string; language: string; name?: string }>;
+  componentSpecs: Array<{ name: string; description: string; type: string }>;
+  richTemplates: Map<string, string>;
+  processedSpecs?: string[];
+  createFiles?: Array<{ path: string; type: string; description?: string }>; // ← NEW for Test #3A
+}
+
+interface MaestroModule {
+  name: string;
+  path: string;
+  dependencies: string[];
+  complexity: "low" | "medium" | "high";
+  priority: number;
+  hasWebAudio: boolean;
+  hasCanvas: boolean;
+  hasSVG: boolean; // 🆕 SVG architecture support
+  description: string;
+  moduleType: "component" | "hook" | "util" | "test" | "engine" | "worklet"; // 🆕 Added engine/worklet
+  templateSource?: "spec" | "starter" | "rich" | "generated";
+  isUpdate?: boolean;
+}
+
+interface BuildPlan {
+  modules: MaestroModule[];
+  buildOrder: string[];
+  estimatedTime: number;
+  dependencies: string[];
+  conflicts: string[];
+  processedSpecs: string[];
+}
+
+interface ModuleTemplate {
+  name: string;
+  content: string;
+  imports: string[];
+  exports: string[];
+  tests?: string;
+  extension: string;
+  source: "spec" | "starter" | "rich" | "generated";
+}
+
+export class MaestroGuitarModuleBuilder {
+  private brainConnector: BrainConnector;
+  private outputChannel: vscode.OutputChannel;
+  private workspaceRoot: string;
+  private maestroInputFolder: string;
+  private brainDataPath?: string;
+
+  constructor() {
+    this.brainConnector = new BrainConnector();
+    this.outputChannel = vscode.window.createOutputChannel(
+      "Cipher Maestro Guitar Builder"
+    );
+
+    const maestroRoot = findMaestroProjectRoot();
+    this.workspaceRoot =
+      maestroRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
+
+    this.maestroInputFolder = path.join(this.workspaceRoot, "maestro-ai-input");
+
+    if (maestroRoot) {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.find(
+        (folder) => folder.uri.fsPath === path.dirname(maestroRoot)
+      );
+      if (workspaceFolder) {
+        this.brainDataPath = path.join(
+          workspaceFolder.uri.fsPath,
+          "..",
+          "brain"
+        );
+      }
+    }
+
+    console.log("🎸 Maestro Guitar Module Builder initialized");
+    console.log(`📁 Workspace Root: ${this.workspaceRoot}`);
+    console.log(`📦 Input Folder: ${this.maestroInputFolder}`);
+    if (this.brainDataPath) {
+      console.log(`🧠 Brain Path: ${this.brainDataPath}`);
+    }
+  }
+
+  private getFileExtension(moduleSpec: ModuleSpec): string {
+    const { type, hasJSX, isReactComponent } = moduleSpec;
+
+    // 🆕 New file types for audio architecture
+    if (type === "engine" || type === "worklet") {
+      return ".ts";
+    }
+
+    if (isReactComponent || hasJSX) {
+      return ".tsx";
+    }
+
+    if (type === "hook" && moduleSpec.name.startsWith("use")) {
+      return ".tsx";
+    }
+
+    if (type === "test") {
+      return hasJSX ? ".test.tsx" : ".test.ts";
+    }
+
+    return ".ts";
+  }
+
+  private analyzeModuleContent(module: MaestroModule): {
+    hasJSX: boolean;
+    isReactComponent: boolean;
+    hasSVG: boolean; // 🆕 SVG detection
+  } {
+    const { name, moduleType, description } = module;
+
+    if (moduleType === "component") {
+      // 🎨 SVG-first approach for tab components (Songsterr discovery!)
+      const hasSVG =
+        name.toLowerCase().includes("tab") ||
+        name.toLowerCase().includes("fret") ||
+        description.toLowerCase().includes("svg") ||
+        description.toLowerCase().includes("interactive");
+      return { hasJSX: true, isReactComponent: true, hasSVG };
+    }
+
+    if (moduleType === "hook" && name.startsWith("use")) {
+      return { hasJSX: true, isReactComponent: false, hasSVG: false };
+    }
+
+    // 🆕 Audio engines and worklets don't use JSX
+    if (moduleType === "engine" || moduleType === "worklet") {
+      return { hasJSX: false, isReactComponent: false, hasSVG: false };
+    }
+
+    const componentPatterns = [
+      /Component$/,
+      /Page$/,
+      /Modal$/,
+      /Button$/,
+      /Display$/,
+      /Controller$/,
+      /Overlay$/,
+      /Isolator$/,
+      /Diagram$/,
+    ];
+
+    const isReactComponent = componentPatterns.some((pattern) =>
+      pattern.test(name)
+    );
+
+    return {
+      hasJSX: isReactComponent,
+      isReactComponent,
+      hasSVG: false,
+    };
+  }
+
+  public async buildMaestroGuitarModules(
+    specPath?: string
+  ): Promise<BuildPlan> {
+    try {
+      this.outputChannel.appendLine(
+        `🎸 Starting Maestro.ai Guitar Practice module generation with SVG architecture...`
+      );
+      console.log("🎸 === MAESTRO MODULE BUILDER START (SVG + AUDIO) ===");
+
+      const brainConnected = isBrainConnected();
+      console.log(`🧠 Brain connection status: ${brainConnected}`);
+
+      if (brainConnected) {
+        console.log("🧠 Brain connected - applying intelligence");
+        (this.brainConnector as any).learnFromAction(
+          "maestro_guitar_build_start",
+          "success",
+          {
+            specPath,
+            inputFolder: this.maestroInputFolder,
+            svgArchitecture: true,
+          }
+        );
+      } else {
+        console.log("🧠 Brain not connected - proceeding without intelligence");
+        try {
+          const brainInterface = getBrainInterface();
+          console.log(
+            `🧠 Alternative brain check: ${brainInterface ? "Available" : "Not available"}`
+          );
+        } catch (error) {
+          console.log(`🧠 Brain interface error: ${error}`);
+        }
+      }
+
+      const protectionResult = protectMaestroGuitarInstallation();
+      this.outputChannel.appendLine(
+        `🛡️ Protection applied: ${protectionResult ? "✅ Active" : "❌ Failed"}`
+      );
+      console.log(`🛡️ Protection result: ${protectionResult}`);
+
+      const specs = await this.analyzeSpecifications(specPath);
+      console.log(
+        `📋 Analyzed specs - found ${specs.starterTemplates.length} code blocks, ${specs.richTemplates.size} rich templates`
+      );
+
+      const buildPlan = await this.createBuildPlan(specs);
+      console.log(
+        `🏗️ Build plan created - ${buildPlan.modules.length} modules to build`
+      );
+
+      await this.executeBuildPlan(buildPlan);
+      console.log("✅ Build plan execution completed");
+
+      // 🎯 NEW: Create additional files if specified (Test #3A)
+      if (specs.createFiles && specs.createFiles.length > 0) {
+        const maestroRoot = findMaestroProjectRoot();
+        if (maestroRoot) {
+          await this.createNewFiles(specs.createFiles, maestroRoot);
+          console.log(
+            `📁 Created ${specs.createFiles.length} additional files`
+          );
+        }
+      }
+
+      if (buildPlan.processedSpecs.length > 0) {
+        await this.cleanupProcessedFiles(buildPlan.processedSpecs);
+        console.log(
+          `🧹 Cleaned up ${buildPlan.processedSpecs.length} processed spec files`
+        );
+      } else {
+        console.log(`🧹 No spec files to clean up`);
+      }
+
+      if (isBrainConnected()) {
+        (this.brainConnector as any).learnFromAction(
+          "maestro_guitar_build_complete",
+          "success",
+          buildPlan
+        );
+        await shareAnalysisData("maestro_guitar_build_complete", buildPlan);
+      }
+
+      await this.displayBuildResults(buildPlan);
+
+      console.log("🎸 === MAESTRO MODULE BUILDER COMPLETE (SVG + AUDIO) ===");
+      return buildPlan;
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `❌ Error building Maestro.ai guitar modules: ${error}`
+      );
+      console.error("❌ Maestro module builder error:", error);
+
+      if (isBrainConnected()) {
+        (this.brainConnector as any).learnFromAction(
+          "maestro_guitar_build_error",
+          "failure",
+          { error: error instanceof Error ? error.message : String(error) }
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private async analyzeSpecifications(
+    specPath?: string
+  ): Promise<SpecificationData> {
+    const specs: SpecificationData = {
+      requirements: [],
+      modules: [],
+      features: [],
+      constraints: [],
+      starterTemplates: [],
+      componentSpecs: [],
+      richTemplates: new Map(),
+      processedSpecs: [],
+    };
+
+    try {
+      console.log("🔍 Analyzing specifications...");
+      console.log(`📂 Input folder: ${this.maestroInputFolder}`);
+      console.log(
+        `📂 Folder exists: ${fs.existsSync(this.maestroInputFolder)}`
+      );
+
+      const brainConnected = isBrainConnected();
+      console.log(`🧠 Brain connection check result: ${brainConnected}`);
+
+      const specFiles = await this.findSpecificationFiles(specPath);
+      console.log(`📄 Found ${specFiles.length} specification files`);
+
+      if (specFiles.length > 0) {
+        console.log(
+          `📋 Spec files: ${specFiles.map((f) => path.basename(f)).join(", ")}`
+        );
+      } else {
+        console.log(
+          `⚠️ No spec files found - checking input folder contents...`
+        );
+        if (fs.existsSync(this.maestroInputFolder)) {
+          const allFiles = fs.readdirSync(this.maestroInputFolder);
+          console.log(`📁 Input folder contents: ${allFiles.join(", ")}`);
+        }
+      }
+
+      for (const file of specFiles) {
+        console.log(`📖 Processing spec file: ${path.basename(file)}`);
+        const content = await fs.promises.readFile(file, "utf8");
+        console.log(`📄 File content length: ${content.length} characters`);
+        await this.parseSpecification(content, specs, file);
+      }
+
+      await this.loadRichTemplates(specs);
+
+      if (isBrainConnected()) {
+        (this.brainConnector as any).learnFromAction(
+          "spec_analysis",
+          "success",
+          {
+            specsCount: specFiles.length,
+            starterTemplates: specs.starterTemplates.length,
+            richTemplates: specs.richTemplates.size,
+          }
+        );
+      }
+
+      specs.processedSpecs = specFiles;
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `⚠️ Warning: Could not fully analyze specifications: ${error}`
+      );
+      console.warn("⚠️ Spec analysis warning:", error);
+    }
+
+    return specs;
+  }
+
+  private async findSpecificationFiles(specPath?: string): Promise<string[]> {
+    const specFiles: string[] = [];
+
+    if (specPath && fs.existsSync(specPath)) {
+      specFiles.push(specPath);
+      console.log(`📎 Using provided spec file: ${specPath}`);
+    }
+
+    const searchPaths = [
+      this.maestroInputFolder,
+      path.join(this.maestroInputFolder, "component-specs"),
+      path.join(this.maestroInputFolder, "feature-requirements"),
+      path.join(this.maestroInputFolder, "integration-plans"),
+    ];
+
+    for (const searchPath of searchPaths) {
+      if (fs.existsSync(searchPath)) {
+        console.log(`🔍 Scanning: ${searchPath}`);
+        try {
+          const files = await fs.promises.readdir(searchPath);
+          for (const file of files) {
+            const fullPath = path.join(searchPath, file);
+            const stats = await fs.promises.stat(fullPath);
+
+            if (stats.isFile() && this.isSpecificationFile(file)) {
+              specFiles.push(fullPath);
+              console.log(`📄 Found spec: ${file}`);
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not scan ${searchPath}:`, error);
+        }
+      }
+    }
+
+    return [...new Set(specFiles)];
+  }
+
+  private isSpecificationFile(fileName: string): boolean {
+    const lower = fileName.toLowerCase();
+    return (
+      lower.endsWith(".md") ||
+      lower.endsWith(".txt") ||
+      lower.includes("spec") ||
+      lower.includes("requirement") ||
+      lower.includes("guitar") ||
+      lower.includes("practice") ||
+      lower.includes("component")
+    );
+  }
+
+  private async parseSpecification(
+    content: string,
+    specs: SpecificationData,
+    filePath: string
+  ): Promise<void> {
+    console.log(`📖 Parsing specification from: ${path.basename(filePath)}`);
+
+    const codeBlockPattern =
+      /```(?:typescript|tsx|javascript|jsx|ts|js)?\n([\s\S]*?)```/g;
+    let match;
+    let codeBlockCount = 0;
+
+    while ((match = codeBlockPattern.exec(content)) !== null) {
+      const code = match[1].trim();
+      if (code.length > 50) {
+        const language = this.detectCodeLanguage(code);
+        const name =
+          this.extractComponentName(code) || `component_${codeBlockCount}`;
+
+        specs.starterTemplates.push({
+          code,
+          language,
+          name,
+        });
+        codeBlockCount++;
+        console.log(`📝 Extracted code block: ${name} (${language})`);
+      }
+    }
+
+    const componentPattern =
+      /##?\s*Component:\s*(.+?)\n([\s\S]*?)(?=\n##|\n#|$)/gi;
+    while ((match = componentPattern.exec(content)) !== null) {
+      const name = match[1].trim();
+      const description = match[2].trim();
+      const type = this.detectComponentTypeFromDescription(description);
+
+      specs.componentSpecs.push({ name, description, type });
+      console.log(`🎯 Found component spec: ${name} (${type})`);
+
+      if (
+        name.toLowerCase().includes("test") ||
+        name.toLowerCase().startsWith("test")
+      ) {
+        specs.starterTemplates.push({
+          code: `// Component: ${name}\n// ${description}`,
+          language: "tsx",
+          name: name,
+        });
+        console.log(`🧪 Added test component: ${name}`);
+      }
+    }
+
+    const updatePattern = /##?\s*Update:\s*(.+?)\n([\s\S]*?)(?=\n##|\n#|$)/gi;
+    while ((match = updatePattern.exec(content)) !== null) {
+      const name = match[1].trim();
+      const description = match[2].trim();
+      const type = this.detectComponentTypeFromDescription(description);
+
+      specs.componentSpecs.push({
+        name,
+        description: `UPDATE_FLAG:${description}`,
+        type,
+      });
+      console.log(`🔄 Found UPDATE spec: ${name} (${type})`);
+
+      specs.starterTemplates.push({
+        code: `// UPDATE: ${name}\n// ${description}`,
+        language: "tsx",
+        name: name,
+      });
+      console.log(`🔄 Added update template: ${name}`);
+    }
+
+    // 🎯 NEW: Parse Create Files sections (Test #3A)
+    const createFilesPattern =
+      /##?\s*Create Files?:\s*\n([\s\S]*?)(?=\n##|\n#|$)/i;
+    const createFilesMatch = content.match(createFilesPattern);
+    if (createFilesMatch) {
+      const fileLines = createFilesMatch[1]
+        .split("\n")
+        .filter((line) => line.trim().startsWith("-"))
+        .map((line) => line.trim().replace(/^-\s*/, ""));
+
+      for (const fileLine of fileLines) {
+        const [filePath, ...descParts] = fileLine.split(" - ");
+        const description = descParts.join(" - ") || "";
+        const fileType = this.detectFileTypeFromPath(filePath.trim());
+
+        if (!specs.createFiles) specs.createFiles = [];
+        specs.createFiles.push({
+          path: filePath.trim(),
+          type: fileType,
+          description: description.trim(),
+        });
+        console.log(
+          `📁 Found file to create: ${filePath.trim()} (${fileType})`
+        );
+      }
+    }
+
+    const requirementPattern =
+      /##?\s*Requirements?\s*\n([\s\S]*?)(?=\n##|\n#|$)/i;
+    const requirementMatch = content.match(requirementPattern);
+    if (requirementMatch) {
+      const requirements = requirementMatch[1]
+        .split("\n")
+        .filter(
+          (line) => line.trim().startsWith("-") || line.trim().startsWith("*")
+        )
+        .map((line) => line.trim().replace(/^[-*]\s*/, ""));
+      specs.requirements.push(...requirements);
+      console.log(`📋 Extracted ${requirements.length} requirements`);
+    }
+
+    const modulePattern =
+      /guitar-[\w-]+|practice-[\w-]+|vocal-[\w-]+|audio-[\w-]+/g;
+    const modules = content.match(modulePattern) || [];
+    specs.modules.push(...modules);
+    console.log(`🏗️ Found ${modules.length} module references`);
+
+    const featurePattern = /##?\s*Features?\s*\n([\s\S]*?)(?=\n##|\n#|$)/i;
+    const featureMatch = content.match(featurePattern);
+    if (featureMatch) {
+      const features = featureMatch[1]
+        .split("\n")
+        .filter(
+          (line) => line.trim().startsWith("-") || line.trim().startsWith("*")
+        )
+        .map((line) => line.trim().replace(/^[-*]\s*/, ""));
+      specs.features.push(...features);
+      console.log(`✨ Extracted ${features.length} features`);
+    }
+  }
+
+  // 🎯 ENHANCED: Support methods for Test #3A + new audio architecture
+  private detectFileTypeFromPath(filePath: string): string {
+    const extension = path.extname(filePath);
+    const fileName = path.basename(filePath, extension);
+    const pathLower = filePath.toLowerCase();
+
+    // 🆕 Audio engine detection
+    if (
+      pathLower.includes("/engines/") ||
+      fileName.toLowerCase().includes("engine")
+    ) {
+      return "engine";
+    }
+
+    // 🆕 Audio worklet detection
+    if (
+      pathLower.includes("/worklets/") ||
+      fileName.toLowerCase().includes("worklet")
+    ) {
+      return "worklet";
+    }
+
+    if (extension === ".tsx") {
+      if (fileName.includes("test") || fileName.includes("Test")) {
+        return "test";
+      }
+      return "component";
+    }
+
+    if (extension === ".ts") {
+      if (fileName.includes("util") || filePath.includes("/utils/")) {
+        return "util";
+      }
+      if (filePath.includes("/data/") || fileName.includes("data")) {
+        return "data";
+      }
+      return "module";
+    }
+
+    return "file";
+  }
+
+  private async createNewFiles(
+    createFiles: Array<{ path: string; type: string; description?: string }>,
+    maestroRoot: string
+  ): Promise<void> {
+    if (!createFiles || createFiles.length === 0) return;
+
+    console.log(`📁 Creating ${createFiles.length} new files...`);
+
+    for (const fileSpec of createFiles) {
+      try {
+        const fullPath = path.join(maestroRoot, fileSpec.path);
+        const dirPath = path.dirname(fullPath);
+
+        if (!fs.existsSync(dirPath)) {
+          await fs.promises.mkdir(dirPath, { recursive: true });
+          console.log(
+            `📁 Created directory: ${path.relative(maestroRoot, dirPath)}`
+          );
+        }
+
+        const content = await this.generateFileContent(fileSpec);
+
+        await fs.promises.writeFile(fullPath, content);
+        console.log(`📄 Created file: ${fileSpec.path}`);
+
+        // 🔧 IMPROVED: Let indexSyncUtils.ts decide folder patterns automatically
+        const fileName = path.basename(
+          fileSpec.path,
+          path.extname(fileSpec.path)
+        );
+        await this.updateIndexFile(
+          dirPath,
+          fileName,
+          path.extname(fileSpec.path)
+        );
+      } catch (error) {
+        console.error(`❌ Failed to create ${fileSpec.path}:`, error);
+      }
+    }
+  }
+
+  // 🔧 ENHANCED: generateFileContent method with SVG + audio support
+  private async generateFileContent(fileSpec: {
+    path: string;
+    type: string;
+    description?: string;
+  }): Promise<string> {
+    const fileName = path.basename(fileSpec.path, path.extname(fileSpec.path));
+    const description = fileSpec.description || `Generated ${fileSpec.type}`;
+
+    // ✅ Special handling for guitar-tabs (already working)
+    if (fileSpec.type === "data" && fileName.includes("guitar-tabs")) {
+      return this.generateGuitarTabsData();
+    }
+
+    // 🎨 NEW: SVG-based TabPlayer template (Songsterr discovery!)
+    if (fileSpec.type === "component" && fileName === "TabPlayer") {
+      return this.generateSVGTabPlayerTemplate();
+    }
+
+    // 🆕 Audio engine template
+    if (fileSpec.type === "engine") {
+      return this.generateAudioEngineTemplate(fileName, description);
+    }
+
+    // 🆕 Audio worklet template
+    if (fileSpec.type === "worklet") {
+      return this.generateAudioWorkletTemplate(fileName, description);
+    }
+
+    // 🔧 NEW: Proper test file template
+    if (fileSpec.type === "test") {
+      const componentName = fileName.replace(".test", "");
+      return this.generateTestFileTemplate(componentName, description);
+    }
+
+    // 🔧 NEW: Proper utility file template
+    if (fileSpec.type === "util") {
+      return this.generateUtilityFileTemplate(fileName, description);
+    }
+
+    // 🔧 NEW: Proper component file template
+    if (fileSpec.type === "component") {
+      return this.generateComponentFileTemplate(fileName, description);
+    }
+
+    // 🔧 NEW: Proper data file template
+    if (fileSpec.type === "data") {
+      return this.generateDataFileTemplate(fileName, description);
+    }
+
+    // ✅ Default fallback (improved)
+    return this.generateDefaultFileTemplate(
+      fileName,
+      description,
+      fileSpec.type
+    );
+  }
+
+  private generateGuitarTabsData(): string {
+    return `// 🎸 Guitar Tabs Data - Sample tablature data
+// Generated by Cipher Maestro Builder
+
+export interface GuitarTab {
+  id: string;
+  title: string;
+  artist: string;
+  tuning: string[];
+  bpm: number;
+  timeSignature: string;
+  tabs: TabMeasure[];
+}
+
+export interface TabMeasure {
+  strings: string[]; // 6 strings, high E to low E
+  timing: number[];  // Beat timing for each note
+}
+
+export const sampleTabs: GuitarTab[] = [
+  {
+    id: 'wonderwall-intro',
+    title: 'Wonderwall (Intro)',
+    artist: 'Oasis',
+    tuning: ['E', 'B', 'G', 'D', 'A', 'E'],
+    bpm: 87,
+    timeSignature: '4/4',
+    tabs: [
+      {
+        strings: ['3-2-0---', '3-3-3---', '0-0-0---', '0-0-0---', '2-2-2---', '3-3-3---'],
+        timing: [1, 1.5, 2, 2.5, 3, 3.5]
+      }
+    ]
+  }
+];
+
+export const guitarTabsData = {
+  tabs: sampleTabs,
+  getTabs: () => sampleTabs,
+  getTabById: (id: string) => sampleTabs.find(tab => tab.id === id),
+  addTab: (tab: GuitarTab) => sampleTabs.push(tab)
+};
+
+export default guitarTabsData;`;
+  }
+
+  // 🎨 NEW: SVG-based TabPlayer template (Songsterr inspiration!)
+  private generateSVGTabPlayerTemplate(): string {
+    return `'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+
+interface GuitarTab {
+  id: string;
+  title: string;
+  artist: string;
+  tuning: string[];
+  bpm: number;
+  timeSignature: string;
+  tabs: TabMeasure[];
+}
+
+interface TabMeasure {
+  strings: string[];
+  timing: number[];
+}
+
+interface TabPlayerProps {
+  tabData?: GuitarTab;
+  className?: string;
+  onTabChange?: (position: number) => void;
+}
+
+export const TabPlayer: React.FC<TabPlayerProps> = ({
+  tabData,
+  className = "",
+  onTabChange
+}) => {
+  const [currentPosition, setCurrentPosition] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentBeat, setCurrentBeat] = useState(0);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const handlePlay = () => {
+    setIsPlaying(!isPlaying);
+    onTabChange?.(currentPosition);
+  };
+
+  const handleFretClick = (stringIndex: number, fretPosition: number) => {
+    console.log(\`Clicked string \${stringIndex}, fret \${fretPosition}\`);
+    onTabChange?.(fretPosition);
+  };
+
+  if (!tabData) {
+    return (
+      <div className={\`tab-player \${className}\`}>
+        <p>No tab data available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={\`tab-player \${className}\`} data-testid="tabplayer">
+      <div className="tab-header">
+        <h4>🎼 {tabData.title} - {tabData.artist}</h4>
+        <p>BPM: {tabData.bpm} | Time: {tabData.timeSignature}</p>
+      </div>
+
+      <div className="tab-controls">
+        <button onClick={handlePlay} className="btn-playback">
+          {isPlaying ? '⏹️ Stop' : '▶️ Play'}
+        </button>
+        <div className="playback-position">
+          Beat: {currentBeat + 1}
+        </div>
+      </div>
+
+      {/* 🎨 SVG-based Interactive Tablature (Songsterr-inspired) */}
+      <div className="svg-tab-container">
+        <svg
+          ref={svgRef}
+          width="800"
+          height="300"
+          viewBox="0 0 800 300"
+          className="interactive-tab-svg"
+        >
+          {/* String Lines */}
+          {Array.from({ length: 6 }, (_, stringIndex) => (
+            <line
+              key={\`string-\${stringIndex}\`}
+              x1="50"
+              y1={50 + stringIndex * 40}
+              x2="750"
+              y2={50 + stringIndex * 40}
+              stroke="#333"
+              strokeWidth="2"
+              className="string-line"
+            />
+          ))}
+
+          {/* Beat Markers */}
+          {Array.from({ length: 16 }, (_, beatIndex) => (
+            <line
+              key={\`beat-\${beatIndex}\`}
+              x1={100 + beatIndex * 40}
+              y1="30"
+              x2={100 + beatIndex * 40}
+              y2="270"
+              stroke={currentBeat === beatIndex ? "#e74c3c" : "#ddd"}
+              strokeWidth={currentBeat === beatIndex ? "3" : "1"}
+              className="beat-marker"
+            />
+          ))}
+
+          {/* Fret Numbers/Notes */}
+          {tabData.tabs.map((measure, measureIndex) =>
+            measure.strings.map((stringNotes, stringIndex) =>
+              stringNotes.split('').map((note, noteIndex) => {
+                if (note !== '-' && note !== ' ') {
+                  const xPos = 100 + noteIndex * 40;
+                  const yPos = 50 + stringIndex * 40;
+                  
+                  return (
+                    <g key={\`note-\${measureIndex}-\${stringIndex}-\${noteIndex}\`}>
+                      {/* Interactive Fret Circle */}
+                      <circle
+                        cx={xPos}
+                        cy={yPos}
+                        r="12"
+                        fill={currentBeat === noteIndex ? "#e74c3c" : "#3498db"}
+                        stroke="#2c3e50"
+                        strokeWidth="2"
+                        className="fret-circle interactive"
+                        onClick={() => handleFretClick(stringIndex, parseInt(note))}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {/* Fret Number */}
+                      <text
+                        x={xPos}
+                        y={yPos + 5}
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize="14"
+                        fontWeight="bold"
+                        className="fret-number"
+                        onClick={() => handleFretClick(stringIndex, parseInt(note))}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        {note}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
+              })
+            )
+          )}
+
+          {/* Playback Cursor */}
+          {isPlaying && (
+            <rect
+              x={90 + currentBeat * 40}
+              y="25"
+              width="20"
+              height="250"
+              fill="rgba(231, 76, 60, 0.3)"
+              className="playback-cursor"
+            />
+          )}
+
+          {/* String Labels */}
+          {['E', 'B', 'G', 'D', 'A', 'E'].map((tuning, index) => (
+            <text
+              key={\`tuning-\${index}\`}
+              x="25"
+              y={55 + index * 40}
+              textAnchor="middle"
+              fontSize="14"
+              fontWeight="bold"
+              fill="#2c3e50"
+              className="string-label"
+            >
+              {tuning}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      <div className="tab-info">
+        <p>🎸 Interactive SVG Tablature - Click fret positions to hear notes</p>
+        <p>Tuning: {tabData.tuning.join(' - ')}</p>
+      </div>
+    </div>
+  );
+};
+
+export default TabPlayer;`;
+  }
+
+  // 🆕 Audio Engine Template Generator
+  private generateAudioEngineTemplate(
+    fileName: string,
+    description: string
+  ): string {
+    const className = fileName.replace(/Engine$/, "") + "Engine";
+
+    return `// 🎵 ${className} - ${description}
+// Generated by Cipher Maestro Builder - Audio Engine Architecture
+
+export interface ${className}Config {
+  sampleRate: number;
+  bufferSize: number;
+  channels: number;
+}
+
+export interface ${className}State {
+  isPlaying: boolean;
+  currentTime: number;
+  volume: number;
+  tempo: number;
+}
+
+export class ${className} {
+  private audioContext: AudioContext | null = null;
+  private config: ${className}Config;
+  private state: ${className}State;
+  private gainNode: GainNode | null = null;
+
+  constructor(config: Partial<${className}Config> = {}) {
+    this.config = {
+      sampleRate: 44100,
+      bufferSize: 4096,
+      channels: 2,
+      ...config
+    };
+
+    this.state = {
+      isPlaying: false,
+      currentTime: 0,
+      volume: 1.0,
+      tempo: 120
+    };
+
+    this.initialize();
+  }
+
+  async initialize(): Promise<void> {
+    try {
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: this.config.sampleRate
+      });
+
+      this.gainNode = this.audioContext.createGain();
+      this.gainNode.connect(this.audioContext.destination);
+
+      console.log(\`\${className} initialized with sample rate: \${this.config.sampleRate}Hz\`);
+    } catch (error) {
+      console.error(\`Failed to initialize \${className}:\`, error);
+      throw error;
+    }
+  }
+
+  async start(): Promise<void> {
+    if (!this.audioContext) {
+      await this.initialize();
+    }
+
+    if (this.audioContext?.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+
+    this.state.isPlaying = true;
+    console.log(\`\${className} started\`);
+  }
+
+  stop(): void {
+    this.state.isPlaying = false;
+    this.state.currentTime = 0;
+    console.log(\`\${className} stopped\`);
+  }
+
+  setVolume(volume: number): void {
+    if (this.gainNode) {
+      this.gainNode.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), this.audioContext!.currentTime);
+      this.state.volume = volume;
+    }
+  }
+
+  setTempo(tempo: number): void {
+    this.state.tempo = Math.max(60, Math.min(200, tempo));
+    console.log(\`Tempo set to: \${this.state.tempo} BPM\`);
+  }
+
+  getState(): ${className}State {
+    return { ...this.state };
+  }
+
+  getCurrentTime(): number {
+    return this.audioContext?.currentTime || 0;
+  }
+
+  dispose(): void {
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+    console.log(\`\${className} disposed\`);
+  }
+}
+
+export default ${className};`;
+  }
+
+  // 🆕 Audio Worklet Template Generator
+  private generateAudioWorkletTemplate(
+    fileName: string,
+    description: string
+  ): string {
+    const className = fileName.replace(/Worklet$/, "") + "Worklet";
+
+    return `// 🎚️ ${className} - ${description}
+// Generated by Cipher Maestro Builder - Audio Worklet for Low-Latency Processing
+
+// Worklet Processor (runs in AudioWorkletGlobalScope)
+class ${className}Processor extends AudioWorkletProcessor {
+  private sampleRate: number;
+  private currentSample: number = 0;
+
+  constructor() {
+    super();
+    this.sampleRate = 44100; // Will be overridden by actual sample rate
+    
+    this.port.onmessage = (event) => {
+      const { type, data } = event.data;
+      this.handleMessage(type, data);
+    };
+  }
+
+  handleMessage(type: string, data: any): void {
+    switch (type) {
+      case 'SET_SAMPLE_RATE':
+        this.sampleRate = data;
+        break;
+      case 'RESET':
+        this.currentSample = 0;
+        break;
+      default:
+        console.warn(\`Unknown message type: \${type}\`);
+    }
+  }
+
+  process(
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    parameters: Record<string, Float32Array>
+  ): boolean {
+    const input = inputs[0];
+    const output = outputs[0];
+
+    if (input && input.length > 0) {
+      const inputChannel = input[0];
+      const outputChannel = output[0];
+
+      // Process audio samples
+      for (let i = 0; i < inputChannel.length; i++) {
+        // Example processing: simple pass-through with gain
+        const gain = parameters.gain ? parameters.gain[i] : 1.0;
+        outputChannel[i] = inputChannel[i] * gain;
+        
+        this.currentSample++;
+      }
+
+      // Send periodic updates to main thread
+      if (this.currentSample % (this.sampleRate * 0.1) === 0) {
+        this.port.postMessage({
+          type: 'SAMPLE_UPDATE',
+          currentSample: this.currentSample,
+          timestamp: this.currentSample / this.sampleRate
+        });
+      }
+    }
+
+    return true; // Keep processor alive
+  }
+}
+
+// Register the processor
+registerProcessor('${fileName.toLowerCase().replace(/worklet$/, "")}-processor', ${className}Processor);
+
+// Main Thread Interface
+export class ${className} {
+  private audioContext: AudioContext | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private isInitialized: boolean = false;
+
+  async initialize(audioContext: AudioContext): Promise<void> {
+    if (this.isInitialized) return;
+
+    this.audioContext = audioContext;
+
+    try {
+      // Add the worklet module
+      await audioContext.audioWorklet.addModule(
+        URL.createObjectURL(new Blob([
+          \`(\${${className}Processor.toString()})()\`
+        ], { type: 'application/javascript' }))
+      );
+
+      // Create the worklet node
+      this.workletNode = new AudioWorkletNode(
+        audioContext,
+        '${fileName.toLowerCase().replace(/worklet$/, "")}-processor',
+        {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          channelCount: 2,
+          processorOptions: {
+            sampleRate: audioContext.sampleRate
+          }
+        }
+      );
+
+      // Set up message handling
+      this.workletNode.port.onmessage = (event) => {
+        this.handleWorkletMessage(event.data);
+      };
+
+      this.isInitialized = true;
+      console.log(\`\${className} initialized successfully\`);
+    } catch (error) {
+      console.error(\`Failed to initialize \${className}:\`, error);
+      throw error;
+    }
+  }
+
+  private handleWorkletMessage(data: any): void {
+    const { type, ...payload } = data;
+    
+    switch (type) {
+      case 'SAMPLE_UPDATE':
+        // Handle sample updates from worklet
+        break;
+      default:
+        console.log(\`Worklet message:\`, data);
+    }
+  }
+
+  connect(destination: AudioNode): void {
+    if (this.workletNode) {
+      this.workletNode.connect(destination);
+    }
+  }
+
+  disconnect(): void {
+    if (this.workletNode) {
+      this.workletNode.disconnect();
+    }
+  }
+
+  setParameter(name: string, value: number): void {
+    if (this.workletNode) {
+      const param = (this.workletNode.parameters as any).get(name);
+      if (param) {
+        param.setValueAtTime(value, this.audioContext!.currentTime);
+      }
+    }
+  }
+
+  sendMessage(type: string, data?: any): void {
+    if (this.workletNode) {
+      this.workletNode.port.postMessage({ type, data });
+    }
+  }
+
+  dispose(): void {
+    this.disconnect();
+    this.workletNode = null;
+    this.isInitialized = false;
+    console.log(\`\${className} disposed\`);
+  }
+}
+
+export default ${className};`;
+  }
+
+  // 🆕 Tone.js Hook Template Generator
+  private generateToneHookTemplate(
+    hookName: string,
+    description: string
+  ): string {
+    return `// 🎹 ${hookName} - ${description}
+// Generated by Cipher Maestro Builder - Tone.js Integration Hook
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import * as Tone from 'tone';
+
+export interface ${hookName}Options {
+  autoStart?: boolean;
+  volume?: number;
+  effects?: string[];
+}
+
+export interface ${hookName}State {
+  isPlaying: boolean;
+  isLoaded: boolean;
+  currentTime: string;
+  volume: number;
+}
+
+export const ${hookName} = (options: ${hookName}Options = {}) => {
+  const [state, setState] = useState<${hookName}State>({
+    isPlaying: false,
+    isLoaded: false,
+    currentTime: '0:0:0',
+    volume: options.volume || 0.8
+  });
+
+  const toneRef = useRef<any>(null);
+  const transportRef = useRef(Tone.Transport);
+
+  useEffect(() => {
+    const initializeTone = async () => {
+      try {
+        // Ensure Tone.js is started
+        if (Tone.context.state !== 'running') {
+          await Tone.start();
+        }
+
+        // Initialize your Tone.js components here
+        // Example: Synthesizer, Player, Effects, etc.
+        
+        setState(prev => ({ ...prev, isLoaded: true }));
+        
+        if (options.autoStart) {
+          handleStart();
+        }
+      } catch (error) {
+        console.error('Failed to initialize Tone.js:', error);
+      }
+    };
+
+    initializeTone();
+
+    // Cleanup on unmount
+    return () => {
+      if (toneRef.current) {
+        toneRef.current.dispose();
+      }
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    };
+  }, [options.autoStart]);
+
+  // Update transport position
+  useEffect(() => {
+    const updatePosition = () => {
+      setState(prev => ({
+        ...prev,
+        currentTime: Tone.Transport.position.toString()
+      }));
+    };
+
+    const intervalId = setInterval(updatePosition, 100);
+    return () => clearInterval(intervalId);
+  }, [state.isPlaying]);
+
+  const start = useCallback(async () => {
+    try {
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+      
+      Tone.Transport.start();
+      setState(prev => ({ ...prev, isPlaying: true }));
+    } catch (error) {
+      console.error('Failed to start transport:', error);
+    }
+  }, []);
+
+  const stop = useCallback(() => {
+    Tone.Transport.stop();
+    setState(prev => ({ ...prev, isPlaying: false }));
+  }, []);
+
+  const pause = useCallback(() => {
+    Tone.Transport.pause();
+    setState(prev => ({ ...prev, isPlaying: false }));
+  }, []);
+
+  const reset = useCallback(() => {
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+    setState(prev => ({ 
+      ...prev, 
+      isPlaying: false, 
+      currentTime: '0:0:0' 
+    }));
+  }, []);
+
+  const setVolume = useCallback((volume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+    Tone.Destination.volume.value = Tone.gainToDb(clampedVolume);
+    setState(prev => ({ ...prev, volume: clampedVolume }));
+  }, []);
+
+  const setBPM = useCallback((bpm: number) => {
+    Tone.Transport.bpm.value = Math.max(60, Math.min(200, bpm));
+  }, []);
+
+  const configure = useCallback((newOptions: Partial<${hookName}Options>) => {
+    if (newOptions.volume !== undefined) {
+      setVolume(newOptions.volume);
+    }
+    // Handle other configuration options
+  }, [setVolume]);
+
+  const handleStart = start;
+
+  return {
+    ...state,
+    start,
+    stop,
+    pause,
+    reset,
+    setVolume,
+    setBPM,
+    configure,
+  };
+};
+
+export default ${hookName};
+`;
+  }
+
+  // 🔧 NEW: Proper test file template generator
+  private generateTestFileTemplate(
+    componentName: string,
+    description: string
+  ): string {
+    const componentLower = componentName.toLowerCase();
+
+    return `import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ${componentName} } from './${componentName}';
+
+// 🧪 Tests for ${componentName}
+// Generated by Cipher Maestro Builder
+describe('${componentName}', () => {
+  test('renders without crashing', () => {
+    render(<${componentName} />);
+    expect(screen.getByTestId('${componentLower}')).toBeInTheDocument();
+  });
+
+  test('displays component correctly', () => {
+    render(<${componentName} />);
+    expect(screen.getByText(/${componentName}/)).toBeInTheDocument();
+  });
+
+  test('handles props correctly', () => {
+    const mockOnAction = jest.fn();
+    render(<${componentName} onAction={mockOnAction} />);
+    
+    // Add component-specific tests here
+  });
+
+  test('applies custom className', () => {
+    const customClass = 'custom-test-class';
+    render(<${componentName} className={customClass} />);
+    
+    const element = screen.getByTestId('${componentLower}');
+    expect(element).toHaveClass(customClass);
+  });
+});
+`;
+  }
+
+  // 🔧 NEW: Proper utility file template generator
+  private generateUtilityFileTemplate(
+    fileName: string,
+    description: string
+  ): string {
+    // Convert kebab-case to camelCase for variable names
+    const camelCaseVar = fileName
+      .split("-")
+      .map((word, index) =>
+        index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
+      )
+      .join("");
+
+    const capitalizedName =
+      camelCaseVar.charAt(0).toUpperCase() + camelCaseVar.slice(1);
+
+    return `// 🔧 ${camelCaseVar} - ${description}
+// Generated by Cipher Maestro Builder
+
+export interface ${capitalizedName}Options {
+  // Configuration options for ${camelCaseVar}
+}
+
+export interface ${capitalizedName}Result {
+  // Result type for ${camelCaseVar} operations
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export const ${camelCaseVar} = {
+  /**
+   * Process data using ${camelCaseVar}
+   */
+  process: (input: string, options?: ${capitalizedName}Options): ${capitalizedName}Result => {
+    try {
+      // Implementation here
+      return {
+        success: true,
+        data: input
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  },
+
+  /**
+   * Validate input for ${camelCaseVar}
+   */
+  validate: (input: string): boolean => {
+    return typeof input === 'string' && input.length > 0;
+  }
+};
+
+export default ${camelCaseVar};
+`;
+  }
+
+  // 🔧 NEW: Proper component file template generator
+  private generateComponentFileTemplate(
+    fileName: string,
+    description: string
+  ): string {
+    return `'use client';
+
+import React, { useState } from 'react';
+
+interface ${fileName}Props {
+  className?: string;
+  onAction?: (action: string) => void;
+}
+
+/**
+ * ${fileName} - ${description}
+ * Generated by Cipher Maestro Builder
+ */
+export const ${fileName}: React.FC<${fileName}Props> = ({
+  className = "",
+  onAction
+}) => {
+  const [isActive, setIsActive] = useState(false);
+
+  const handleAction = () => {
+    setIsActive(!isActive);
+    onAction?.('toggle');
+  };
+
+  return (
+    <div 
+      className={\`${fileName.toLowerCase()} \${className}\`}
+      data-testid="${fileName.toLowerCase()}"
+    >
+      <div className="component-header">
+        <h3>🎸 ${fileName}</h3>
+        <p>{isActive ? 'Active' : 'Inactive'}</p>
+      </div>
+      
+      <div className="component-content">
+        <p>${description}</p>
+        <button onClick={handleAction} className="btn-primary">
+          {isActive ? 'Deactivate' : 'Activate'} ${fileName}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ${fileName};
+`;
+  }
+
+  // 🔧 NEW: Proper data file template generator
+  private generateDataFileTemplate(
+    fileName: string,
+    description: string
+  ): string {
+    const camelCaseVar = fileName
+      .split("-")
+      .map((word, index) =>
+        index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
+      )
+      .join("");
+
+    const capitalizedName =
+      camelCaseVar.charAt(0).toUpperCase() + camelCaseVar.slice(1);
+
+    return `// 📊 ${camelCaseVar} - ${description}
+// Generated by Cipher Maestro Builder
+
+export interface ${capitalizedName}Data {
+  id: string;
+  name: string;
+  // Add specific data structure here
+}
+
+export const ${camelCaseVar}Data: ${capitalizedName}Data[] = [
+  // Add sample data here
+];
+
+export const ${camelCaseVar} = {
+  data: ${camelCaseVar}Data,
+  
+  getAll: () => ${camelCaseVar}Data,
+  
+  getById: (id: string) => ${camelCaseVar}Data.find(item => item.id === id),
+  
+  add: (item: ${capitalizedName}Data) => ${camelCaseVar}Data.push(item)
+};
+
+export default ${camelCaseVar};
+`;
+  }
+
+  // 🔧 ENHANCED: Default template generator with new file types
+  private generateDefaultFileTemplate(
+    fileName: string,
+    description: string,
+    fileType: string
+  ): string {
+    const camelCaseVar = fileName
+      .split("-")
+      .map((word, index) =>
+        index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
+      )
+      .join("");
+
+    return `// 🎸 ${camelCaseVar} - ${description}
+// Generated by Cipher Maestro Builder
+
+export const ${camelCaseVar} = {
+  // ${fileType} implementation
+  info: '${description}',
+  
+  initialize: () => {
+    console.log('${camelCaseVar} initialized');
+  }
+};
+
+export default ${camelCaseVar};
+`;
+  }
+
+  // Rest of the existing working methods from Test #2...
+
+  private async loadRichTemplates(specs: SpecificationData): Promise<void> {
+    console.log("🎨 Loading rich component templates...");
+
+    const hasSpecs =
+      specs.starterTemplates.length > 0 ||
+      specs.componentSpecs.length > 0 ||
+      specs.requirements.length > 0;
+
+    if (!hasSpecs) {
+      console.log("📦 No specifications found, adding default rich templates");
+      this.addDefaultRichTemplates(specs);
+    } else {
+      console.log(
+        `✅ Found specifications (${specs.starterTemplates.length} templates, ${specs.componentSpecs.length} specs) - skipping default rich templates`
+      );
+    }
+  }
+
+  private addDefaultRichTemplates(specs: SpecificationData): void {
+    const defaultTemplates = new Map([
+      [
+        "GuitarPracticeGenerator",
+        "// Guitar Practice Generator\nexport const GuitarPracticeGenerator = () => null;",
+      ],
+      [
+        "VoicePracticeComponent",
+        "// Voice Practice Component\nexport const VoicePracticeComponent = () => null;",
+      ],
+      [
+        "SVGTabDisplayComponent", // 🎨 Updated to SVG
+        "// SVG Tab Display Component\nexport const SVGTabDisplayComponent = () => null;",
+      ],
+      [
+        "AudioControllerComponent",
+        "// Audio Controller Component\nexport const AudioControllerComponent = () => null;",
+      ],
+    ]);
+
+    for (const [name, template] of defaultTemplates) {
+      if (!specs.richTemplates.has(name)) {
+        specs.richTemplates.set(name, template);
+        console.log(`🎨 Added default rich template: ${name}`);
+      }
+    }
+  }
+
+  private async createBuildPlan(specs: SpecificationData): Promise<BuildPlan> {
+    console.log("🏗️ Creating enhanced build plan...");
+
+    const modules: MaestroModule[] = [];
+
+    for (const starterTemplate of specs.starterTemplates) {
+      if (starterTemplate.name) {
+        const module = this.createModuleFromStarterCode(
+          starterTemplate,
+          "starter"
+        );
+        if (module) {
+          modules.push(module);
+          console.log(
+            `📝 Created module from starter: ${starterTemplate.name}`
+          );
+        }
+      }
+    }
+
+    for (const componentSpec of specs.componentSpecs) {
+      const module = this.createModuleFromComponentSpec(componentSpec, "spec");
+      if (module) {
+        modules.push(module);
+        console.log(`🎯 Created module from spec: ${componentSpec.name}`);
+      }
+    }
+
+    if (modules.length === 0) {
+      console.log("📦 No specification modules found, using rich templates");
+      for (const [templateName, template] of specs.richTemplates) {
+        const module = this.createModuleFromTemplate(
+          templateName,
+          template,
+          "rich"
+        );
+        if (module) modules.push(module);
+      }
+    } else {
+      console.log(
+        `✅ Found ${modules.length} modules from specifications, skipping rich template fallback`
+      );
+    }
+
+    if (modules.length === 0) {
+      console.log("📦 No templates or specs found, using default module set");
+      modules.push(...this.getDefaultModules());
+    }
+
+    const uniqueModules = this.removeDuplicateModules(modules);
+    console.log(`🏗️ Build plan: ${uniqueModules.length} unique modules`);
+
+    const buildOrder = this.calculateBuildOrder(uniqueModules);
+
+    const buildPlan: BuildPlan = {
+      modules: uniqueModules,
+      buildOrder,
+      estimatedTime: uniqueModules.length * 15,
+      dependencies: this.extractAllDependencies(uniqueModules),
+      conflicts: await this.checkForConflicts(uniqueModules),
+      processedSpecs: specs.processedSpecs || [],
+    };
+
+    console.log(
+      `📊 Build plan complete: ${buildPlan.modules.length} modules, ${buildPlan.dependencies.length} dependencies`
+    );
+    return buildPlan;
+  }
+
+  private removeDuplicateModules(modules: MaestroModule[]): MaestroModule[] {
+    const moduleMap = new Map<string, MaestroModule>();
+
+    console.log(`🔍 Deduplicating ${modules.length} modules:`);
+    modules.forEach((m, i) =>
+      console.log(
+        `  ${i}: ${m.name} (${m.templateSource}, isUpdate: ${m.isUpdate})`
+      )
+    );
+
+    for (const module of modules) {
+      const existing = moduleMap.get(module.name);
+
+      if (!existing) {
+        moduleMap.set(module.name, module);
+        console.log(`✅ Added first ${module.name} (${module.templateSource})`);
+      } else {
+        const shouldReplace = this.shouldReplaceModule(existing, module);
+        if (shouldReplace) {
+          moduleMap.set(module.name, module);
+          console.log(
+            `🔄 Replaced ${module.name}: ${existing.templateSource} → ${module.templateSource} (isUpdate: ${existing.isUpdate} → ${module.isUpdate})`
+          );
+        } else {
+          console.log(
+            `⏭️ Kept existing ${module.name}: ${existing.templateSource} over ${module.templateSource}`
+          );
+        }
+      }
+    }
+
+    console.log(`🎯 Final modules:`);
+    Array.from(moduleMap.values()).forEach((m) =>
+      console.log(
+        `  ${m.name}: ${m.templateSource}, isUpdate: ${m.isUpdate}, desc: "${m.description.substring(0, 50)}..."`
+      )
+    );
+
+    return Array.from(moduleMap.values());
+  }
+
+  private shouldReplaceModule(
+    existing: MaestroModule,
+    candidate: MaestroModule
+  ): boolean {
+    const priorityOrder = { spec: 4, starter: 3, rich: 2, generated: 1 };
+
+    const existingPriority =
+      priorityOrder[existing.templateSource || "generated"] || 0;
+    const candidatePriority =
+      priorityOrder[candidate.templateSource || "generated"] || 0;
+
+    if (candidatePriority > existingPriority) {
+      return true;
+    }
+
+    if (
+      candidatePriority === existingPriority &&
+      candidate.isUpdate &&
+      !existing.isUpdate
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private createModuleFromStarterCode(
+    starterTemplate: { code: string; language: string; name?: string },
+    source: "starter"
+  ): MaestroModule | null {
+    if (!starterTemplate.name) return null;
+
+    const module = this.createModuleFromTemplate(
+      starterTemplate.name,
+      starterTemplate.code,
+      source
+    );
+
+    if (module && starterTemplate.code.includes("UPDATE:")) {
+      module.isUpdate = true;
+      console.log(
+        `📝 Starter template ${starterTemplate.name} marked as update`
+      );
+    }
+
+    console.log(
+      `📝 Created starter module ${starterTemplate.name}: isUpdate=${module?.isUpdate}, description="${module?.description}"`
+    );
+
+    return module;
+  }
+
+  private createModuleFromComponentSpec(
+    componentSpec: { name: string; description: string; type: string },
+    source: "spec"
+  ): MaestroModule | null {
+    try {
+      const moduleType = componentSpec.type as
+        | "component"
+        | "hook"
+        | "util"
+        | "test"
+        | "engine" // 🆕 Added
+        | "worklet"; // 🆕 Added
+
+      const isUpdate = componentSpec.description.startsWith("UPDATE_FLAG:");
+      const cleanDescription = isUpdate
+        ? componentSpec.description.replace("UPDATE_FLAG:", "")
+        : componentSpec.description;
+
+      console.log(
+        `🎯 Creating module ${componentSpec.name}: isUpdate=${isUpdate}, description="${cleanDescription}"`
+      );
+
+      return {
+        name: this.sanitizeModuleName(componentSpec.name),
+        path: this.generateModulePath(componentSpec.name, moduleType),
+        dependencies: this.extractDependenciesFromDescription(cleanDescription),
+        complexity: "medium",
+        priority: componentSpec.name.toLowerCase().includes("test") ? 1 : 2,
+        hasWebAudio: cleanDescription.toLowerCase().includes("audio"),
+        hasCanvas:
+          cleanDescription.toLowerCase().includes("display") ||
+          cleanDescription.toLowerCase().includes("visual"),
+        hasSVG:
+          cleanDescription.toLowerCase().includes("svg") ||
+          cleanDescription.toLowerCase().includes("tab") ||
+          cleanDescription.toLowerCase().includes("interactive"), // 🎨 SVG detection
+        description: cleanDescription,
+        moduleType,
+        templateSource: source,
+        isUpdate: isUpdate,
+      };
+    } catch (error) {
+      console.warn(
+        `⚠️ Could not create module from component spec ${componentSpec.name}:`,
+        error
+      );
+      return null;
+    }
+  }
+
+  private createModuleFromTemplate(
+    name: string,
+    template: string,
+    source: "rich" | "starter"
+  ): MaestroModule | null {
+    try {
+      const moduleType = this.detectModuleTypeFromTemplate(template);
+      const complexity =
+        template.length > 2000
+          ? "high"
+          : template.length > 1000
+            ? "medium"
+            : "low";
+
+      return {
+        name: this.sanitizeModuleName(name),
+        path: this.generateModulePath(name, moduleType),
+        dependencies: this.extractDependenciesFromTemplate(template),
+        complexity,
+        priority: source === "rich" ? 1 : 2,
+        hasWebAudio:
+          template.includes("Web Audio") || template.includes("AudioContext"),
+        hasCanvas: template.includes("canvas") || template.includes("Canvas"),
+        hasSVG:
+          template.includes("SVG") ||
+          template.includes("svg") ||
+          name.toLowerCase().includes("tab"), // 🎨 SVG detection
+        description: `${name} - Generated from ${source} template`,
+        moduleType,
+        templateSource: source,
+        isUpdate: false,
+      };
+    } catch (error) {
+      console.warn(`⚠️ Could not create module from template ${name}:`, error);
+      return null;
+    }
+  }
+
+  // Additional working methods...
+  private async cleanupProcessedFiles(processedSpecs: string[]): Promise<void> {
+    if (processedSpecs.length === 0) return;
+
+    console.log(
+      `🧹 Cleaning up ${processedSpecs.length} processed spec files...`
+    );
+
+    for (const specFile of processedSpecs) {
+      try {
+        const dir = path.dirname(specFile);
+        const processedDir = path.join(dir, "processed");
+
+        if (!fs.existsSync(processedDir)) {
+          await fs.promises.mkdir(processedDir, { recursive: true });
+          console.log(`📁 Created processed directory: ${processedDir}`);
+        }
+
+        const fileName = path.basename(specFile);
+        const processedPath = path.join(processedDir, fileName);
+
+        await fs.promises.rename(specFile, processedPath);
+
+        this.outputChannel.appendLine(`📁 Moved to processed: ${fileName}`);
+        console.log(`📁 Moved to processed: ${fileName} -> ${processedPath}`);
+      } catch (error) {
+        console.warn(`⚠️ Could not move ${specFile} to processed:`, error);
+        this.outputChannel.appendLine(
+          `⚠️ Could not move ${path.basename(specFile)} to processed: ${error}`
+        );
+      }
+    }
+  }
+
+  private calculateBuildOrder(modules: MaestroModule[]): string[] {
+    const buildOrder: string[] = [];
+    const built = new Set<string>();
+    const remaining = [...modules];
+
+    while (remaining.length > 0) {
+      const canBuild = remaining.filter((module) =>
+        module.dependencies.every(
+          (dep) => built.has(dep) || !modules.some((m) => m.name === dep)
+        )
+      );
+
+      if (canBuild.length === 0) {
+        const next = remaining.sort((a, b) => a.priority - b.priority)[0];
+        buildOrder.push(next.name);
+        built.add(next.name);
+        remaining.splice(remaining.indexOf(next), 1);
+      } else {
+        const next = canBuild.sort((a, b) => a.priority - b.priority)[0];
+        buildOrder.push(next.name);
+        built.add(next.name);
+        remaining.splice(remaining.indexOf(next), 1);
+      }
+    }
+
+    return buildOrder;
+  }
+
+  private extractAllDependencies(modules: MaestroModule[]): string[] {
+    const deps = new Set<string>();
+    modules.forEach((module) =>
+      module.dependencies.forEach((dep) => deps.add(dep))
+    );
+    return Array.from(deps);
+  }
+
+  private async checkForConflicts(modules: MaestroModule[]): Promise<string[]> {
+    const conflicts: string[] = [];
+    const maestroRoot = findMaestroProjectRoot();
+
+    if (!maestroRoot) {
+      conflicts.push("Maestro.ai project root not found");
+      return conflicts;
+    }
+
+    for (const module of modules) {
+      const extension = this.getFileExtension({
+        name: module.name,
+        type: module.moduleType,
+        hasJSX: this.analyzeModuleContent(module).hasJSX,
+        isReactComponent: this.analyzeModuleContent(module).isReactComponent,
+        path: module.path,
+      });
+
+      const fullPath = path.join(maestroRoot, `${module.path}${extension}`);
+      if (fs.existsSync(fullPath)) {
+        conflicts.push(`File already exists: ${module.path}${extension}`);
+      }
+    }
+
+    return conflicts;
+  }
+
+  private async executeBuildPlan(buildPlan: BuildPlan): Promise<void> {
+    this.outputChannel.appendLine(
+      `🚀 Executing build plan for ${buildPlan.modules.length} modules...`
+    );
+    console.log(
+      `🚀 Executing build plan for ${buildPlan.modules.length} modules`
+    );
+
+    const maestroRoot = findMaestroProjectRoot();
+    if (!maestroRoot) {
+      throw new Error("Maestro.ai project root not found - cannot proceed");
+    }
+
+    for (const moduleName of buildPlan.buildOrder) {
+      const module = buildPlan.modules.find((m) => m.name === moduleName);
+      if (module) {
+        console.log(`🔨 Building module: ${moduleName}`);
+        await this.buildModule(module, maestroRoot);
+      }
+    }
+  }
+
+  private async buildModule(
+    module: MaestroModule,
+    maestroRoot: string
+  ): Promise<void> {
+    try {
+      this.outputChannel.appendLine(`🔨 Building ${module.name}...`);
+      console.log(
+        `🔨 Building ${module.name} from ${module.templateSource} source`
+      );
+
+      const fullPath = path.join(maestroRoot, module.path);
+      const template = await this.generateModuleTemplate(module);
+      const finalFilePath = `${fullPath}${template.extension}`;
+
+      const isUpdate = module.isUpdate || false;
+      const fileExists = fs.existsSync(finalFilePath);
+
+      if (isUpdate && fileExists) {
+        console.log(`🔄 UPDATE MODE: Backing up existing ${module.name}`);
+
+        const { protectFileModification } = await import(
+          "../../shared/indexSyncUtils"
+        );
+        const backupSuccess = protectFileModification(finalFilePath);
+
+        if (backupSuccess) {
+          console.log(`💾 Backup created for ${module.name}`);
+          this.outputChannel.appendLine(`💾 Backup created for ${module.name}`);
+        } else {
+          console.warn(
+            `⚠️ Backup failed for ${module.name}, proceeding anyway`
+          );
+        }
+
+        const existingContent = await fs.promises.readFile(
+          finalFilePath,
+          "utf8"
+        );
+        const mergedContent = await this.mergeUpdateWithExisting(
+          existingContent,
+          template.content,
+          module
+        );
+        template.content = mergedContent;
+
+        console.log(`🔄 Generated enhanced ${module.name} with new features`);
+      } else if (fileExists && !isUpdate) {
+        console.log(
+          `⚠️ File exists but not an update - creating backup anyway`
+        );
+        const { protectFileModification } = await import(
+          "../../shared/indexSyncUtils"
+        );
+        protectFileModification(finalFilePath);
+      }
+
+      const dirPath = path.dirname(fullPath);
+      try {
+        await vscode.workspace.fs.createDirectory(vscode.Uri.file(dirPath));
+      } catch {}
+
+      await fs.promises.writeFile(finalFilePath, template.content);
+
+      this.outputChannel.appendLine(
+        `✅ ${module.name} ${isUpdate ? "updated" : "built"} successfully at: ${finalFilePath}`
+      );
+      console.log(
+        `✅ Module ${isUpdate ? "updated" : "built"}: ${finalFilePath}`
+      );
+
+      await this.updateIndexFile(dirPath, module.name, template.extension);
+
+      if (template.tests) {
+        const testExtension =
+          template.extension === ".tsx" ? ".test.tsx" : ".test.ts";
+        const testFilePath = `${fullPath}${testExtension}`;
+
+        if (isUpdate && fs.existsSync(testFilePath)) {
+          const { protectFileModification } = await import(
+            "../../shared/indexSyncUtils"
+          );
+          protectFileModification(testFilePath);
+
+          const existingTests = await fs.promises.readFile(
+            testFilePath,
+            "utf8"
+          );
+          const enhancedTests = await this.enhanceExistingTests(
+            existingTests,
+            template.tests,
+            module
+          );
+          await fs.promises.writeFile(testFilePath, enhancedTests);
+          console.log(`🧪 Enhanced tests for ${module.name}`);
+        } else {
+          await fs.promises.writeFile(testFilePath, template.tests);
+          console.log(`🧪 Created tests for ${module.name}`);
+        }
+      }
+
+      if (isBrainConnected()) {
+        (this.brainConnector as any).learnFromAction(
+          isUpdate ? "module_updated" : "module_built",
+          "success",
+          {
+            moduleName: module.name,
+            complexity: module.complexity,
+            path: module.path,
+            extension: template.extension,
+            finalPath: finalFilePath,
+            templateSource: module.templateSource,
+            isUpdate,
+            fileExisted: fileExists,
+            hasSVG: module.hasSVG, // 🎨 Track SVG usage
+            moduleType: module.moduleType,
+          }
+        );
+      }
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `❌ Error building ${module.name}: ${error}`
+      );
+      console.error(`❌ Error building ${module.name}:`, error);
+
+      if (isBrainConnected()) {
+        (this.brainConnector as any).learnFromAction(
+          "module_build_error",
+          "failure",
+          {
+            moduleName: module.name,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private async generateModuleTemplate(
+    module: MaestroModule
+  ): Promise<ModuleTemplate> {
+    let content = "";
+    let imports: string[] = [];
+    let exports: string[] = [];
+    let tests = "";
+
+    const moduleSpec: ModuleSpec = {
+      name: module.name,
+      type: module.moduleType,
+      hasJSX: false,
+      isReactComponent: false,
+      path: module.path,
+    };
+
+    const analysis = this.analyzeModuleContent(module);
+    moduleSpec.hasJSX = analysis.hasJSX;
+    moduleSpec.isReactComponent = analysis.isReactComponent;
+
+    const extension = this.getFileExtension(moduleSpec);
+
+    this.outputChannel.appendLine(
+      `🔍 ${module.name}: Type=${module.moduleType}, JSX=${moduleSpec.hasJSX}, Extension=${extension}, Source=${module.templateSource}, SVG=${analysis.hasSVG}`
+    );
+
+    // 🆕 Handle new audio architecture types
+    if (module.moduleType === "engine") {
+      content = this.generateAudioEngineTemplate(
+        module.name,
+        module.description
+      );
+      imports = ["web-audio-api"];
+      exports = [module.name];
+      tests = "";
+    } else if (module.moduleType === "worklet") {
+      content = this.generateAudioWorkletTemplate(
+        module.name,
+        module.description
+      );
+      imports = ["web-audio-api"];
+      exports = [module.name];
+      tests = "";
+    } else if (module.templateSource === "rich") {
+      content = await this.generateFromRichTemplate(module);
+      imports = this.extractImportsFromContent(content);
+      exports = this.extractExportsFromContent(content);
+      tests = this.generateTestsFromTemplate(content);
+    } else if (module.templateSource === "starter") {
+      content = await this.generateFromStarterCode(module);
+      imports = module.dependencies;
+      exports = [module.name];
+      tests = this.generateBasicTests(module);
+    } else {
+      content = await this.generateDefaultTemplate(module);
+      imports = module.dependencies;
+      exports = [module.name];
+      tests = this.generateBasicTests(module);
+    }
+
+    return {
+      name: module.name,
+      content,
+      imports,
+      exports,
+      tests,
+      extension,
+      source: module.templateSource || "generated",
+    };
+  }
+
+  private async generateFromRichTemplate(
+    module: MaestroModule
+  ): Promise<string> {
+    return `'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+
+// 🎸 ${module.name} - Rich Template Component
+// Generated from rich template source
+
+interface ${module.name}Props {
+  className?: string;
+  onAction?: (action: string) => void;
+}
+
+/**
+ * 🎸 ${module.description}
+ */
+export const ${module.name}: React.FC<${module.name}Props> = ({
+  className = "",
+  onAction
+}) => {
+  const [isActive, setIsActive] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'active' | 'complete'>('idle');
+  const componentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    console.log('${module.name} initialized');
+  }, []);
+
+  const handleAction = (action: string) => {
+    setIsActive(!isActive);
+    setStatus(status === 'idle' ? 'active' : 'idle');
+    onAction?.(action);
+  };
+
+  return (
+    <div 
+      ref={componentRef}
+      className={\`maestro-\${module.name.toLowerCase()} \${className}\`}
+    >
+      <div className="component-header">
+        <h3>🎸 ${module.name}</h3>
+        <span className="status">Status: {status}</span>
+      </div>
+      
+      <div className="component-content">
+        <button 
+          onClick={() => handleAction('toggle')}
+          className={\`action-button \${isActive ? 'active' : ''}\`}
+        >
+          {isActive ? 'Stop' : 'Start'} ${module.name}
+        </button>
+        
+        <div className="component-display">
+          {isActive ? (
+            <p>🎵 ${module.name} is now active!</p>
+          ) : (
+            <p>Click Start to begin using ${module.name}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ${module.name};`;
+  }
+
+  private async generateFromStarterCode(
+    module: MaestroModule
+  ): Promise<string> {
+    if (isBrainConnected()) {
+      console.log(`🧠 Using Dual Brain to enhance ${module.name}`);
+    }
+
+    // 🎨 Check if this should be an SVG component
+    const shouldUseSVG =
+      module.hasSVG ||
+      module.name.toLowerCase().includes("tab") ||
+      module.name.toLowerCase().includes("fret");
+
+    if (shouldUseSVG) {
+      return this.generateSVGTabPlayerTemplate();
+    }
+
+    return `'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+
+// 🧠 ${module.name} - Enhanced by Dual Brain
+// Generated from starter specification
+
+interface ${module.name}Props {
+  className?: string;
+  onAction?: (action: string) => void;
+}
+
+/**
+ * 🎸 ${module.description || `${module.name} component for guitar practice`}
+ */
+export const ${module.name}: React.FC<${module.name}Props> = ({
+  className = "",
+  onAction
+}) => {
+  const [isActive, setIsActive] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'ready' | 'practicing'>('idle');
+  const componentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    console.log('${module.name} initialized');
+    setStatus('ready');
+  }, []);
+
+  const handleStart = () => {
+    setIsActive(true);
+    setStatus('practicing');
+    onAction?.('start');
+  };
+
+  const handleStop = () => {
+    setIsActive(false);
+    setStatus('ready');
+    onAction?.('stop');
+  };
+
+  return (
+    <div 
+      ref={componentRef}
+      className={\`test-component \${className}\`}
+      data-testid="${module.name.toLowerCase()}"
+    >
+      <div className="component-header">
+        <h2>🎸 ${module.name}</h2>
+        <span className={\`status status-\${status}\`}>
+          Status: {status}
+        </span>
+      </div>
+      
+      <div className="component-content">
+        <div className="controls">
+          {!isActive ? (
+            <button 
+              onClick={handleStart}
+              className="btn-start"
+              type="button"
+            >
+              ▶️ Start ${module.name}
+            </button>
+          ) : (
+            <button 
+              onClick={handleStop}
+              className="btn-stop"
+              type="button"
+            >
+              ⏹️ Stop ${module.name}
+            </button>
+          )}
+        </div>
+        
+        <div className="display">
+          {isActive ? (
+            <div className="active-display">
+              <p>🎵 ${module.name} is now active!</p>
+              <div className="practice-info">
+                <p>Practice session in progress...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="idle-display">
+              <p>Ready to start ${module.name}</p>
+              <p>Click the start button to begin your practice session.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ${module.name};`;
+  }
+
+  private async generateDefaultTemplate(
+    module: MaestroModule
+  ): Promise<string> {
+    return generateMusicHandlerTemplate(module.name);
+  }
+
+  private extractImportsFromContent(content: string): string[] {
+    const importPattern = /import.*from\s+['"]([^'"]+)['"]/g;
+    const imports: string[] = [];
+    let match;
+    while ((match = importPattern.exec(content)) !== null) {
+      imports.push(match[1]);
+    }
+    return imports;
+  }
+
+  private extractExportsFromContent(content: string): string[] {
+    const exportPattern =
+      /export\s+(?:default\s+)?(?:function\s+|const\s+|class\s+)?(\w+)/g;
+    const exports: string[] = [];
+    let match;
+    while ((match = exportPattern.exec(content)) !== null) {
+      exports.push(match[1]);
+    }
+    return exports;
+  }
+
+  private generateTestsFromTemplate(content: string): string {
+    const componentMatch = content.match(/export\s+(?:const|function)\s+(\w+)/);
+    const componentName = componentMatch ? componentMatch[1] : "Component";
+
+    return `import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ${componentName} } from './${componentName}';
+
+// 🎸 Tests for ${componentName}
+describe('${componentName}', () => {
+  test('renders without crashing', () => {
+    render(<${componentName} />);
+    expect(screen.getByText(/${componentName}/i)).toBeInTheDocument();
+  });
+
+  test('handles user interaction', () => {
+    const mockAction = jest.fn();
+    render(<${componentName} onAction={mockAction} />);
+    
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+    
+    expect(mockAction).toHaveBeenCalled();
+  });
+
+  test('applies custom className', () => {
+    const customClass = 'custom-test-class';
+    render(<${componentName} className={customClass} />);
+    
+    const element = screen.getByText(/${componentName}/i).closest('div');
+    expect(element).toHaveClass(customClass);
+  });
+});`;
+  }
+
+  private generateBasicTests(module: MaestroModule): string {
+    return `import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ${module.name} } from './${module.name}';
+
+// 🎸 Tests for ${module.name}
+// Module type: ${module.moduleType}
+describe('${module.name}', () => {
+  test('renders without crashing', () => {
+    render(<${module.name} />);
+    expect(screen.getByTestId('${module.name.toLowerCase()}')).toBeInTheDocument();
+  });
+
+  test('displays component name', () => {
+    render(<${module.name} />);
+    expect(screen.getByText('🎸 ${module.name}')).toBeInTheDocument();
+  });
+
+  test('handles start/stop actions', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const startButton = screen.getByText(/start ${module.name}/i);
+    fireEvent.click(startButton);
+    
+    expect(mockAction).toHaveBeenCalledWith('start');
+    expect(screen.getByText(/stop ${module.name}/i)).toBeInTheDocument();
+  });
+
+  test('applies custom className', () => {
+    const customClass = 'custom-test-class';
+    render(<${module.name} className={customClass} />);
+    
+    const element = screen.getByTestId('${module.name.toLowerCase()}');
+    expect(element).toHaveClass(customClass);
+  });
+});`;
+  }
+
+  // Working Test #2 merge functionality
+  private async mergeUpdateWithExisting(
+    existingContent: string,
+    updateTemplate: string,
+    module: MaestroModule
+  ): Promise<string> {
+    console.log(`🔄 Merging updates for ${module.name}`);
+
+    const updateDescription = module.description;
+    const newFeatures = this.extractFeaturesFromDescription(updateDescription);
+
+    if (newFeatures.length === 0) {
+      console.warn(`⚠️ No features found to merge for ${module.name}`);
+      let mergedContent = existingContent;
+      if (!mergedContent.includes("with NEW FEATURES")) {
+        mergedContent = mergedContent.replace(
+          /\/\/ 🧠 (.+?) - Enhanced by Dual Brain/,
+          `// 🧠 ${module.name} - Enhanced by Dual Brain with NEW FEATURES`
+        );
+      }
+      return mergedContent;
+    }
+
+    let mergedContent = existingContent;
+
+    if (!mergedContent.includes("with NEW FEATURES")) {
+      mergedContent = mergedContent.replace(
+        /\/\/ 🧠 (.+?) - Enhanced by Dual Brain/,
+        `// 🧠 ${module.name} - Enhanced by Dual Brain with NEW FEATURES`
+      );
+    }
+
+    mergedContent = mergedContent.replace(
+      /\/\*\*[\s\S]*?\*\//,
+      `/**
+ * 🎸 ${module.name} - ENHANCED with new features
+ * Original: Generated from starter template
+ * Updates: ${newFeatures.join(", ")}
+ */`
+    );
+
+    if (
+      newFeatures.some(
+        (f) =>
+          f.toLowerCase().includes("progression") ||
+          f.toLowerCase().includes("metronome") ||
+          f.toLowerCase().includes("progress")
+      )
+    ) {
+      mergedContent = this.addNewStateVariables(mergedContent, module.name);
+    }
+
+    if (
+      newFeatures.some(
+        (f) =>
+          f.toLowerCase().includes("loop") ||
+          f.toLowerCase().includes("effects") ||
+          f.toLowerCase().includes("recording")
+      )
+    ) {
+      mergedContent = this.addAudioFeatureStates(mergedContent, module.name);
+    }
+
+    mergedContent = this.addNewMethods(mergedContent, newFeatures, module.name);
+    mergedContent = this.enhanceComponentJSX(
+      mergedContent,
+      newFeatures,
+      module.name
+    );
+
+    console.log(
+      `✅ Merged ${newFeatures.length} new features into ${module.name}`
+    );
+    return mergedContent;
+  }
+
+  private extractFeaturesFromDescription(description: string): string[] {
+    const features: string[] = [];
+    const lines = description.split("\n");
+
+    console.log(`🔍 Parsing description for features:`, description);
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("-") || trimmedLine.startsWith("*")) {
+        const feature = trimmedLine.replace(/^[-*]\s*/, "").trim();
+        if (feature.length > 0) {
+          features.push(feature);
+          console.log(`📝 Found feature: "${feature}"`);
+        }
+      }
+    }
+
+    console.log(`✅ Extracted ${features.length} features:`, features);
+    return features;
+  }
+
+  private addNewStateVariables(content: string, componentName: string): string {
+    const useStateRegex = /const \[([^\]]+)\] = useState\([^)]*\);/g;
+    const matches = Array.from(content.matchAll(useStateRegex));
+
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const insertIndex = lastMatch.index! + lastMatch[0].length;
+
+      const newStates = `
+  const [chordProgression, setChordProgression] = useState<string[]>(['C', 'G', 'Am', 'F']);
+  const [metronomeActive, setMetronomeActive] = useState(false);
+  const [practiceProgress, setPracticeProgress] = useState(0);
+  const [currentChord, setCurrentChord] = useState(0);`;
+
+      return (
+        content.slice(0, insertIndex) + newStates + content.slice(insertIndex)
+      );
+    }
+
+    console.warn(`⚠️ Could not find useState pattern in ${componentName}`);
+    return content;
+  }
+
+  private addAudioFeatureStates(
+    content: string,
+    componentName: string
+  ): string {
+    const useStateRegex = /const \[([^\]]+)\] = useState\([^)]*\);/g;
+    const matches = Array.from(content.matchAll(useStateRegex));
+
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const insertIndex = lastMatch.index! + lastMatch[0].length;
+
+      const newStates = `
+  const [loopActive, setLoopActive] = useState(false);
+  const [loopStart, setLoopStart] = useState(0);
+  const [loopEnd, setLoopEnd] = useState(30);
+  const [reverbLevel, setReverbLevel] = useState(0);
+  const [delayLevel, setDelayLevel] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);`;
+
+      return (
+        content.slice(0, insertIndex) + newStates + content.slice(insertIndex)
+      );
+    }
+
+    console.warn(`⚠️ Could not find useState pattern in ${componentName}`);
+    return content;
+  }
+
+  private addNewMethods(
+    content: string,
+    features: string[],
+    componentName: string
+  ): string {
+    const returnIndex = content.indexOf("return (");
+
+    if (returnIndex === -1) {
+      console.warn(`⚠️ Could not find return statement in ${componentName}`);
+      return content;
+    }
+
+    let newMethods = "";
+
+    if (features.some((f) => f.toLowerCase().includes("chord"))) {
+      newMethods += `
+  const handleChordProgression = () => {
+    const nextChord = (currentChord + 1) % chordProgression.length;
+    setCurrentChord(nextChord);
+    console.log(\`Playing chord: \${chordProgression[nextChord]}\`);
+    onAction?.(\`chord-\${chordProgression[nextChord]}\`);
+  };
+
+  const generateNewProgression = () => {
+    const chords = ['C', 'G', 'Am', 'F', 'Dm', 'Em', 'A', 'D'];
+    const newProgression = Array.from({length: 4}, () => 
+      chords[Math.floor(Math.random() * chords.length)]
+    );
+    setChordProgression(newProgression);
+    setCurrentChord(0);
+  };`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("metronome"))) {
+      newMethods += `
+  
+  const toggleMetronome = () => {
+    setMetronomeActive(!metronomeActive);
+    console.log(\`Metronome: \${!metronomeActive ? 'ON' : 'OFF'}\`);
+    onAction?.(\`metronome-\${!metronomeActive ? 'on' : 'off'}\`);
+  };`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("progress"))) {
+      newMethods += `
+  
+  const updateProgress = () => {
+    const newProgress = Math.min(practiceProgress + 10, 100);
+    setPracticeProgress(newProgress);
+    console.log(\`Progress: \${newProgress}%\`);
+  };`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("loop"))) {
+      newMethods += `
+  
+  const toggleLoop = () => {
+    setLoopActive(!loopActive);
+    console.log(\`Loop: \${!loopActive ? 'ON' : 'OFF'} (\${loopStart}s - \${loopEnd}s)\`);
+    onAction?.(\`loop-\${!loopActive ? 'on' : 'off'}\`);
+  };`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("effects"))) {
+      newMethods += `
+  
+  const adjustReverb = (level: number) => {
+    setReverbLevel(level);
+    console.log(\`Reverb: \${level}%\`);
+    onAction?.(\`reverb-\${level}\`);
+  };
+
+  const adjustDelay = (level: number) => {
+    setDelayLevel(level);
+    console.log(\`Delay: \${level}%\`);
+    onAction?.(\`delay-\${level}\`);
+  };`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("recording"))) {
+      newMethods += `
+  
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    console.log(\`Recording: \${!isRecording ? 'STARTED' : 'STOPPED'}\`);
+    onAction?.(\`record-\${!isRecording ? 'start' : 'stop'}\`);
+  };`;
+    }
+
+    if (newMethods) {
+      return (
+        content.slice(0, returnIndex) +
+        newMethods +
+        "\n\n  " +
+        content.slice(returnIndex)
+      );
+    }
+
+    return content;
+  }
+
+  private enhanceComponentJSX(
+    content: string,
+    features: string[],
+    componentName: string
+  ): string {
+    const componentContentIndex = content.indexOf(
+      '<div className="component-content">'
+    );
+    const endOfContentIndex = content.indexOf(
+      "</div>",
+      componentContentIndex + 1
+    );
+
+    if (componentContentIndex === -1 || endOfContentIndex === -1) {
+      console.warn(
+        `⚠️ Could not find component-content div in ${componentName}`
+      );
+      return content;
+    }
+
+    let newControls = "";
+
+    if (features.some((f) => f.toLowerCase().includes("chord"))) {
+      newControls += `
+        
+        <div className="chord-controls">
+          <h4>🎸 Chord Progression</h4>
+          <div className="chord-display">
+            {chordProgression.map((chord, index) => (
+              <span 
+                key={index} 
+                className={\`chord \${index === currentChord ? 'active' : ''}\`}
+              >
+                {chord}
+              </span>
+            ))}
+          </div>
+          <div className="chord-buttons">
+            <button onClick={handleChordProgression} className="btn-chord">
+              ▶️ Next Chord
+            </button>
+            <button onClick={generateNewProgression} className="btn-chord">
+              🔄 New Progression
+            </button>
+          </div>
+        </div>`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("metronome"))) {
+      newControls += `
+        
+        <div className="metronome-controls">
+          <h4>🥁 Metronome</h4>
+          <button 
+            onClick={toggleMetronome} 
+            className={\`btn-metronome \${metronomeActive ? 'active' : ''}\`}
+          >
+            {metronomeActive ? '⏸️ Stop' : '▶️ Start'} Metronome
+          </button>
+        </div>`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("progress"))) {
+      newControls += `
+        
+        <div className="progress-tracking">
+          <h4>📊 Progress</h4>
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{width: \`\${practiceProgress}%\`}}
+            ></div>
+          </div>
+          <p>{practiceProgress}% Complete</p>
+          <button onClick={updateProgress} className="btn-progress">
+            +10% Progress
+          </button>
+        </div>`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("loop"))) {
+      newControls += `
+        
+        <div className="loop-controls">
+          <h4>🔁 Loop Control</h4>
+          <button 
+            onClick={toggleLoop}
+            className={\`btn-loop \${loopActive ? 'active' : ''}\`}
+          >
+            {loopActive ? '⏹️ Stop' : '🔁 Start'} Loop
+          </button>
+          <div className="loop-settings">
+            <label>Start: {loopStart}s</label>
+            <label>End: {loopEnd}s</label>
+          </div>
+        </div>`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("effects"))) {
+      newControls += `
+        
+        <div className="effects-controls">
+          <h4>🎛️ Audio Effects</h4>
+          <div className="effect-sliders">
+            <div className="effect">
+              <label>Reverb: {reverbLevel}%</label>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={reverbLevel}
+                onChange={(e) => adjustReverb(parseInt(e.target.value))}
+              />
+            </div>
+            <div className="effect">
+              <label>Delay: {delayLevel}%</label>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={delayLevel}
+                onChange={(e) => adjustDelay(parseInt(e.target.value))}
+              />
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (features.some((f) => f.toLowerCase().includes("recording"))) {
+      newControls += `
+        
+        <div className="recording-controls">
+          <h4>🎙️ Recording</h4>
+          <button 
+            onClick={toggleRecording}
+            className={\`btn-record \${isRecording ? 'recording' : ''}\`}
+          >
+            {isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording'}
+          </button>
+          {isRecording && <p className="recording-indicator">🔴 Recording in progress...</p>}
+        </div>`;
+    }
+
+    if (newControls) {
+      return (
+        content.slice(0, endOfContentIndex) +
+        newControls +
+        "\n      " +
+        content.slice(endOfContentIndex)
+      );
+    }
+
+    return content;
+  }
+
+  private async enhanceExistingTests(
+    existingTests: string,
+    newTestTemplate: string,
+    module: MaestroModule
+  ): Promise<string> {
+    console.log(`🧪 Enhancing tests for ${module.name}`);
+
+    const features = this.extractFeaturesFromDescription(module.description);
+    let enhancedTests = existingTests;
+
+    const insertPosition = enhancedTests.lastIndexOf("});");
+
+    if (insertPosition > -1) {
+      let newTests = "";
+
+      if (features.some((f) => f.toLowerCase().includes("chord"))) {
+        newTests += `
+
+  test('handles chord progression', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const chordButton = screen.getByText(/next chord/i);
+    fireEvent.click(chordButton);
+    
+    expect(mockAction).toHaveBeenCalledWith(expect.stringMatching(/chord-/));
+  });
+
+  test('generates new chord progression', () => {
+    render(<${module.name} />);
+    
+    const generateButton = screen.getByText(/new progression/i);
+    fireEvent.click(generateButton);
+    
+    expect(screen.getByText(/chord progression/i)).toBeInTheDocument();
+  });`;
+      }
+
+      if (features.some((f) => f.toLowerCase().includes("metronome"))) {
+        newTests += `
+
+  test('toggles metronome', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const metronomeButton = screen.getByText(/start metronome/i);
+    fireEvent.click(metronomeButton);
+    
+    expect(mockAction).toHaveBeenCalledWith('metronome-on');
+    expect(screen.getByText(/stop metronome/i)).toBeInTheDocument();
+  });`;
+      }
+
+      if (features.some((f) => f.toLowerCase().includes("loop"))) {
+        newTests += `
+
+  test('controls audio loop', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const loopButton = screen.getByText(/start loop/i);
+    fireEvent.click(loopButton);
+    
+    expect(mockAction).toHaveBeenCalledWith('loop-on');
+    expect(screen.getByText(/stop loop/i)).toBeInTheDocument();
+  });`;
+      }
+
+      if (features.some((f) => f.toLowerCase().includes("effects"))) {
+        newTests += `
+
+  test('adjusts audio effects', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const reverbSlider = screen.getByLabelText(/reverb/i);
+    fireEvent.change(reverbSlider, { target: { value: '50' } });
+    
+    expect(mockAction).toHaveBeenCalledWith('reverb-50');
+  });`;
+      }
+
+      if (features.some((f) => f.toLowerCase().includes("recording"))) {
+        newTests += `
+
+  test('handles recording toggle', () => {
+    const mockAction = jest.fn();
+    render(<${module.name} onAction={mockAction} />);
+    
+    const recordButton = screen.getByText(/start recording/i);
+    fireEvent.click(recordButton);
+    
+    expect(mockAction).toHaveBeenCalledWith('record-start');
+    expect(screen.getByText(/recording in progress/i)).toBeInTheDocument();
+  });`;
+      }
+
+      enhancedTests =
+        enhancedTests.slice(0, insertPosition) +
+        newTests +
+        "\n" +
+        enhancedTests.slice(insertPosition);
+    }
+
+    return enhancedTests;
+  }
+
+  // 🆕 ENHANCED: Utility methods for new architecture
+  private sanitizeModuleName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "");
+  }
+
+  // 🆕 ENHANCED: generateModulePath with new folder structures
+  private generateModulePath(name: string, type: string): string {
+    const sanitized = this.sanitizeModuleName(name);
+
+    if (
+      name.toLowerCase().includes("test") ||
+      sanitized.toLowerCase().startsWith("test")
+    ) {
+      return `src/modules/test-components/${sanitized}`;
+    }
+
+    // 🆕 Audio engine routing
+    if (type === "engine") {
+      return `src/audio/engines/${sanitized}`;
+    }
+
+    // 🆕 Audio worklet routing
+    if (type === "worklet") {
+      return `src/audio/worklets/${sanitized}`;
+    }
+
+    switch (type) {
+      case "component":
+        // 🎸 Enhanced guitar component routing
+        if (name.toLowerCase().includes("guitar")) {
+          if (
+            name.toLowerCase().includes("tab") ||
+            name.toLowerCase().includes("display")
+          ) {
+            return `src/components/guitar/display/${sanitized}`;
+          }
+          if (
+            name.toLowerCase().includes("fret") ||
+            name.toLowerCase().includes("chord")
+          ) {
+            return `src/components/guitar/fretboard/${sanitized}`;
+          }
+          return `src/components/guitar/${sanitized}`;
+        }
+
+        // 🎵 Enhanced audio component routing
+        if (name.toLowerCase().includes("audio")) {
+          if (
+            name.toLowerCase().includes("control") ||
+            name.toLowerCase().includes("button") ||
+            name.toLowerCase().includes("slider")
+          ) {
+            return `src/components/audio/controls/${sanitized}`;
+          }
+          if (
+            name.toLowerCase().includes("track") ||
+            name.toLowerCase().includes("mixer") ||
+            name.toLowerCase().includes("instrument")
+          ) {
+            return `src/components/audio/tracks/${sanitized}`;
+          }
+          if (
+            name.toLowerCase().includes("visual") ||
+            name.toLowerCase().includes("display") ||
+            name.toLowerCase().includes("spectrum")
+          ) {
+            return `src/components/audio/display/${sanitized}`;
+          }
+          if (
+            name.toLowerCase().includes("effect") ||
+            name.toLowerCase().includes("reverb") ||
+            name.toLowerCase().includes("eq")
+          ) {
+            return `src/components/audio/effects/${sanitized}`;
+          }
+          return `src/components/audio/${sanitized}`;
+        }
+
+        // 🎤 Vocal component routing
+        if (
+          name.toLowerCase().includes("vocal") ||
+          name.toLowerCase().includes("voice")
+        ) {
+          return `src/components/vocal/${sanitized}`;
+        }
+
+        return `src/components/${sanitized}`;
+
+      case "hook":
+        // 🎣 Enhanced hook routing
+        if (
+          name.toLowerCase().includes("audio") ||
+          name.toLowerCase().includes("tone") ||
+          name.toLowerCase().includes("playback")
+        ) {
+          return `src/hooks/audio/${sanitized}`;
+        }
+        if (
+          name.toLowerCase().includes("guitar") ||
+          name.toLowerCase().includes("fret") ||
+          name.toLowerCase().includes("chord")
+        ) {
+          return `src/hooks/guitar/${sanitized}`;
+        }
+        return `src/hooks/${sanitized}/${sanitized}`;
+
+      case "util":
+        // 🔧 Enhanced utility routing
+        if (name.toLowerCase().includes("audio")) {
+          return `src/audio/utils/${sanitized}`;
+        }
+        return `src/utils/${sanitized}`;
+
+      default:
+        return `src/components/${sanitized}`;
+    }
+  }
+
+  // 🆕 ENHANCED: Module type detection with new types
+  private detectModuleTypeFromTemplate(
+    template: string
+  ): "component" | "hook" | "util" | "test" | "engine" | "worklet" {
+    if (
+      template.includes("AudioWorkletProcessor") ||
+      template.includes("registerProcessor")
+    )
+      return "worklet";
+    if (
+      template.includes("AudioContext") &&
+      template.includes("class") &&
+      template.includes("Engine")
+    )
+      return "engine";
+    if (template.includes("React.FC") || template.includes("useState"))
+      return "component";
+    if (template.includes("use") && template.includes("Hook")) return "hook";
+    if (template.includes("export function") && !template.includes("React"))
+      return "util";
+    return "component";
+  }
+
+  private extractDependenciesFromTemplate(template: string): string[] {
+    const deps: string[] = [];
+    if (template.includes("React")) deps.push("react");
+    if (template.includes("useState") || template.includes("useEffect"))
+      deps.push("react");
+    if (template.includes("Canvas") || template.includes("canvas"))
+      deps.push("canvas");
+    if (template.includes("Web Audio") || template.includes("AudioContext"))
+      deps.push("web-audio-api");
+    if (template.includes("SVG") || template.includes("svg")) deps.push("svg"); // 🎨 SVG dependency
+    if (template.includes("Tone") || template.includes("tone"))
+      deps.push("tone"); // 🎹 Tone.js dependency
+    return [...new Set(deps)];
+  }
+
+  private extractDependenciesFromDescription(description: string): string[] {
+    const deps: string[] = ["react"];
+    const lower = description.toLowerCase();
+
+    if (lower.includes("audio") || lower.includes("sound"))
+      deps.push("web-audio-api");
+    if (
+      lower.includes("display") ||
+      lower.includes("visual") ||
+      lower.includes("canvas")
+    )
+      deps.push("canvas");
+    if (
+      lower.includes("svg") ||
+      lower.includes("interactive") ||
+      lower.includes("tab")
+    )
+      deps.push("svg"); // 🎨 SVG dependency
+    if (lower.includes("chord") || lower.includes("guitar"))
+      deps.push("guitar-js");
+    if (lower.includes("timer") || lower.includes("metronome"))
+      deps.push("timing");
+    if (lower.includes("tone") || lower.includes("synthesizer"))
+      deps.push("tone"); // 🎹 Tone.js dependency
+
+    return [...new Set(deps)];
+  }
+
+  // 🆕 ENHANCED: Default modules with SVG and audio architecture
+  private getDefaultModules(): MaestroModule[] {
+    return [
+      {
+        name: "SVGTabDisplay", // 🎨 Changed from canvas to SVG
+        path: "src/components/guitar/display/SVGTabDisplay",
+        dependencies: ["react", "svg"],
+        complexity: "high",
+        priority: 1,
+        hasWebAudio: false,
+        hasCanvas: false,
+        hasSVG: true, // 🎨 SVG-based
+        description:
+          "Interactive SVG guitar tablature display with clickable fret positions (Songsterr-inspired)",
+        moduleType: "component",
+        templateSource: "generated",
+        isUpdate: false,
+      },
+      {
+        name: "AudioSyncEngine", // 🆕 Audio engine
+        path: "src/audio/engines/AudioSyncEngine",
+        dependencies: ["web-audio-api"],
+        complexity: "high",
+        priority: 2,
+        hasWebAudio: true,
+        hasCanvas: false,
+        hasSVG: false,
+        description:
+          "Audio-visual synchronization engine for real-time playback cursor tracking",
+        moduleType: "engine",
+        templateSource: "generated",
+        isUpdate: false,
+      },
+      {
+        name: "MaestroAudioWorklet", // 🆕 Audio worklet
+        path: "src/audio/worklets/MaestroAudioWorklet",
+        dependencies: ["web-audio-api"],
+        complexity: "high",
+        priority: 3,
+        hasWebAudio: true,
+        hasCanvas: false,
+        hasSVG: false,
+        description:
+          "Low-latency audio processing worklet for real-time audio effects",
+        moduleType: "worklet",
+        templateSource: "generated",
+        isUpdate: false,
+      },
+      {
+        name: "useAudioSync", // 🆕 Tone.js hook
+        path: "src/hooks/audio/useAudioSync",
+        dependencies: ["react", "tone"],
+        complexity: "medium",
+        priority: 4,
+        hasWebAudio: true,
+        hasCanvas: false,
+        hasSVG: false,
+        description:
+          "Tone.js hook for audio-visual synchronization and cursor tracking",
+        moduleType: "hook",
+        templateSource: "generated",
+        isUpdate: false,
+      },
+    ];
+  }
+
+  // 🔧 IMPROVED: Use indexSyncUtils.ts comprehensive logic
+  private async updateIndexFile(
+    dirPath: string,
+    moduleName: string,
+    extension: string
+  ): Promise<void> {
+    try {
+      // Get all TypeScript files in the directory (excluding index.ts and test files)
+      const tsFiles = fs
+        .readdirSync(dirPath)
+        .filter(
+          (file) =>
+            (file.endsWith(".ts") || file.endsWith(".tsx")) &&
+            file !== "index.ts"
+        )
+        .filter(
+          (file) => !file.endsWith(".test.ts") && !file.endsWith(".test.tsx")
+        );
+
+      // 🔧 USE comprehensive logic from indexSyncUtils.ts
+      const shouldHaveIndex = shouldFolderHaveIndex(dirPath, tsFiles.length);
+
+      if (!shouldHaveIndex) {
+        const folderName = path.basename(dirPath);
+        console.log(`⏭️  Skipped ${folderName}/ (utility folder)`);
+        return;
+      }
+
+      // 🔧 USE shared createIndexFile function with comprehensive template
+      const success = createIndexFile(dirPath, tsFiles);
+
+      if (success) {
+        console.log(
+          `📄 Updated index.ts in ${path.basename(dirPath)} with ${moduleName}`
+        );
+      } else {
+        console.warn(`⚠️ Could not update index.ts in ${dirPath}`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Could not update index.ts in ${dirPath}:`, error);
+    }
+  }
+
+  private async displayBuildResults(buildPlan: BuildPlan): Promise<void> {
+    const panel = vscode.window.createWebviewPanel(
+      "maestroGuitarBuildResults",
+      "Maestro.ai Guitar Practice Build Results - SVG + Audio Architecture",
+      vscode.ViewColumn.One,
+      { enableScripts: true }
+    );
+
+    const completedModules = buildPlan.modules.length;
+    const richTemplateCount = buildPlan.modules.filter(
+      (m) => m.templateSource === "rich"
+    ).length;
+    const starterTemplateCount = buildPlan.modules.filter(
+      (m) => m.templateSource === "starter"
+    ).length;
+    const svgModuleCount = buildPlan.modules.filter((m) => m.hasSVG).length;
+    const audioEngineCount = buildPlan.modules.filter(
+      (m) => m.moduleType === "engine" || m.moduleType === "worklet"
+    ).length;
+
+    panel.webview.html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #ffffff; color: #333333; }
+                    .header { color: #e74c3c; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+                    .success { color: #27ae60; }
+                    .module-list { list-style: none; padding: 0; }
+                    .module-item { 
+                        padding: 10px; 
+                        margin: 5px 0; 
+                        background: #f8f9fa; 
+                        border-left: 4px solid #e74c3c;
+                        border-radius: 4px;
+                        color: #333333;
+                    }
+                    .build-stats { 
+                        display: grid; 
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                        gap: 15px; 
+                        margin: 20px 0; 
+                    }
+                    .stat-box { 
+                        padding: 15px; 
+                        background: #fdeaea; 
+                        border: 1px solid #e74c3c;
+                        border-radius: 8px; 
+                        text-align: center;
+                        color: #333333;
+                    }
+                    .next-steps {
+                        background: #fff3cd;
+                        border: 1px solid #ffeaa7;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin: 20px 0;
+                        color: #333333;
+                    }
+                    .enhancement-highlight {
+                        background: #d4edda;
+                        border: 1px solid #c3e6cb;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin: 20px 0;
+                        color: #333333;
+                    }
+                    .discovery-highlight {
+                        background: #e1f5fe;
+                        border: 1px solid #01579b;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin: 20px 0;
+                        color: #333333;
+                    }
+                    .template-source {
+                        font-size: 0.8em;
+                        color: #666;
+                        font-style: italic;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 class="header">🎸 Maestro.ai Guitar Practice Modules Built Successfully - SVG + Audio Architecture!</h1>
+                
+                <div class="discovery-highlight">
+                    <h3>🎯 INCREDIBLE DISCOVERY! SVG Architecture Changes Everything!</h3>
+                    <p>🎨 <strong>SVG vs Canvas:</strong> Individual manipulable elements, perfect for interactive tabs</p>
+                    <p>🎸 <strong>Songsterr's genius:</strong> Each fret, note, and cursor is an SVG element!</p>
+                    <p>🔧 <strong>Handler Updates Applied:</strong> SVG-first approach with new audio engine structure</p>
+                </div>
+                
+                <div class="enhancement-highlight">
+                    <h3>🎯 Enhanced Build System Active!</h3>
+                    <p>✅ SVG-based TabPlayer with interactive fret positions</p>
+                    <p>✅ Audio Engine architecture (engines/worklets)</p>
+                    <p>✅ Tone.js integration hooks</p>
+                    <p>✅ Professional folder structure (audio/controls/, guitar/display/, etc.)</p>
+                    <p>✅ Enhanced folder routing for new architecture</p>
+                    <p>✅ Protection system active - all files backed up</p>
+                </div>
+                
+                <div class="build-stats">
+                    <div class="stat-box">
+                        <h3>${completedModules}</h3>
+                        <p>Total Modules</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>${svgModuleCount}</h3>
+                        <p>SVG Components</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>${audioEngineCount}</h3>
+                        <p>Audio Engines/Worklets</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>${starterTemplateCount}</h3>
+                        <p>Dual Brain Enhanced</p>
+                    </div>
+                </div>
+
+                <h2>✅ Created Maestro.ai Practice Modules</h2>
+                <ul class="module-list">
+                    ${buildPlan.modules
+                      .map(
+                        (module) => `
+                        <li class="module-item">
+                            <strong>${module.name}</strong> 
+                            <span style="color: #666;">(.${module.moduleType === "component" || module.moduleType === "hook" ? "tsx" : "ts"})</span>
+                            ${module.hasSVG ? '<span style="color: #3498db; font-weight: bold;">[SVG]</span>' : ""}
+                            ${module.moduleType === "engine" ? '<span style="color: #e67e22; font-weight: bold;">[ENGINE]</span>' : ""}
+                            ${module.moduleType === "worklet" ? '<span style="color: #9b59b6; font-weight: bold;">[WORKLET]</span>' : ""}
+                            <br>${module.description}
+                            <br><small>Path: ${module.path}</small>
+                            <br><span class="template-source">Source: ${module.templateSource || "generated"}</span>
+                        </li>
+                    `
+                      )
+                      .join("")}
+                </ul>
+
+                <div class="next-steps">
+                    <h3>🚀 Next Steps for Maestro.ai Guitar Practice</h3>
+                    <p>1. ✅ SVG-based interactive tablature components built</p>
+                    <p>2. ✅ Audio engine architecture with worklets ready</p>
+                    <p>3. Install dependencies: ${buildPlan.dependencies.join(", ")}</p>
+                    <p>4. Test SVG interactivity and audio synchronization</p>
+                    <p>5. Integrate Tone.js hooks with audio engines</p>
+                    <p>6. Deploy professional audio architecture to production</p>
+                    <p>7. Test real-time cursor tracking with beat markers</p>
+                </div>
+
+                <div class="discovery-highlight">
+                    <h3>🎸 Architecture Breakthrough Summary</h3>
+                    <p><strong>SVG Tablature:</strong> Interactive fret positions, clickable notes, animated cursors</p>
+                    <p><strong>Audio Engines:</strong> Professional DAW-style architecture with engines and worklets</p>
+                    <p><strong>Folder Structure:</strong> Organized like Songsterr with specialized component routing</p>
+                    <p><strong>Tone.js Ready:</strong> Hooks designed for seamless audio library integration</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+    if (isBrainConnected()) {
+      const brainInterface = getBrainInterface();
+      if (
+        brainInterface &&
+        typeof (brainInterface as any).getSuggestions === "function"
+      ) {
+        const brainSuggestions = await (brainInterface as any).getSuggestions(
+          "maestro_guitar_build_complete_svg",
+          { ...buildPlan, svgArchitecture: true, audioEngineCount }
+        );
+        if (brainSuggestions) {
+          await displayBrainSuggestions(brainSuggestions);
+        }
+      }
+    }
+  }
+
+  // Helper methods
+  private detectCodeLanguage(code: string): string {
+    if (
+      code.includes("React.FC") ||
+      code.includes("useState") ||
+      code.includes("<div")
+    ) {
+      return "tsx";
+    }
+    if (code.includes("interface") || code.includes("type")) {
+      return "ts";
+    }
+    return "ts";
+  }
+
+  private extractComponentName(code: string): string | null {
+    const patterns = [
+      /export\s+(?:default\s+)?(?:function\s+)?(\w+)/,
+      /const\s+(\w+):\s*React\.FC/,
+      /function\s+(\w+)\s*\(/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = code.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  private detectComponentTypeFromDescription(description: string): string {
+    const lower = description.toLowerCase();
+
+    // 🆕 New type detection
+    if (lower.includes("engine") && lower.includes("audio")) return "engine";
+    if (lower.includes("worklet") && lower.includes("audio")) return "worklet";
+    if (lower.includes("hook") || lower.includes("use")) return "hook";
+    if (lower.includes("util") || lower.includes("helper")) return "util";
+    if (lower.includes("component") || lower.includes("display"))
+      return "component";
+    return "component";
+  }
+}
+
+export async function maestroGuitarModuleBuilderHandler(): Promise<void> {
+  try {
+    const protectionResult = protectMaestroGuitarInstallation();
+    console.log(
+      `🛡️ Protection applied: ${protectionResult ? "✅ Active" : "❌ Failed"}`
+    );
+
+    const builder = new MaestroGuitarModuleBuilder();
+    await builder.buildMaestroGuitarModules();
+
+    vscode.window.showInformationMessage(
+      "✅ Maestro.ai guitar practice modules built successfully with SVG architecture and audio engine support!"
+    );
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `❌ Error building Maestro.ai guitar modules: ${error}`
+    );
+    console.error("❌ Handler error:", error);
+  }
+}
+
+export {
+  maestroGuitarModuleBuilderHandler as buildMaestroModules,
+  MaestroGuitarModuleBuilder as MaestroModuleBuilder,
+};
