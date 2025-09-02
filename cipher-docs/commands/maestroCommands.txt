@@ -1,0 +1,551 @@
+// 🎸 Enhanced Command Registration - Maestro.ai Guitar Practice Generator
+// .vscode-extension/cipher-autonomous-dev/src/commands/maestroCommands.ts
+
+import * as vscode from "vscode";
+// 🔧 UPDATED: Import new handler names
+import { maestroGuitarModuleBuilder } from "../handlers/music/maestroGuitarModuleBuilder";
+import { isBrainConnected } from "../shared/utils";
+
+// 🎸 Import the handler classes with correct paths
+import { ZipFile } from "../handlers/import-export/zipFile";
+import { MaestroGuitarModuleBuilder } from "../handlers/music/maestroGuitarModuleBuilder";
+
+// 🧠** KEEP FOR All HANDLER FILES— Brain Enhanced **
+import { BrainConnector } from "../brain/BrainConnector";
+
+/**
+ * Handle ZIP file processing (for backward compatibility)
+ */
+async function handleZipFile(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage("No workspace folder found");
+    return;
+  }
+
+  // Look for maestro-ai-input directory
+  const maestroPath = vscode.Uri.joinPath(
+    workspaceFolder.uri,
+    "maestro-ai-input"
+  );
+
+  try {
+    const files = await vscode.workspace.fs.readDirectory(maestroPath);
+    const zipFiles = files.filter(([name]) => name.endsWith(".zip"));
+
+    if (zipFiles.length === 0) {
+      vscode.window.showWarningMessage(
+        "No ZIP files found in maestro-ai-input directory"
+      );
+      return;
+    }
+
+    // Process the first ZIP file found
+    const zipPath = vscode.Uri.joinPath(maestroPath, zipFiles[0][0]);
+    const handler = new ZipFile();
+    await handler.processZipFile(zipPath.fsPath);
+
+    vscode.window.showInformationMessage(
+      `✅ ZIP file processed: ${zipFiles[0][0]}`
+    );
+  } catch (error) {
+    vscode.window.showErrorMessage(`Error processing ZIP file: ${error}`);
+  }
+}
+
+/**
+ * 🔧 UPDATED: Register all Maestro.ai Guitar Practice commands with VS Code
+ */
+export function registerMaestroGuitarCommands(
+  context: vscode.ExtensionContext
+): void {
+  // ZIP File Analysis Command
+  const zipAnalyzeCommand = vscode.commands.registerCommand(
+    "cipher.analyzePracticeZip",
+    async () => {
+      try {
+        await handleZipFile();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_zip_analyze",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error analyzing ZIP: ${error}`);
+      }
+    }
+  );
+
+  // 🔧 UPDATED: Maestro Guitar Module Builder Command
+  const buildModulesCommand = vscode.commands.registerCommand(
+    "cipher.buildMaestroGuitarModules",
+    async () => {
+      try {
+        await maestroGuitarModuleBuilder();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_build_modules",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error building modules: ${error}`);
+      }
+    }
+  );
+
+  // Import Requirements from ZIP Command
+  const importRequirementsCommand = vscode.commands.registerCommand(
+    "cipher.importRequirements",
+    async () => {
+      try {
+        await importRequirementsFromZip();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_import_requirements",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Error importing requirements: ${error}`
+        );
+      }
+    }
+  );
+
+  // Generate Module from Spec Command
+  const generateModuleCommand = vscode.commands.registerCommand(
+    "cipher.generateModule",
+    async () => {
+      try {
+        await generateModuleFromSpec();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_generate_module",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error generating module: ${error}`);
+      }
+    }
+  );
+
+  // Auto-Process Maestro Input Command
+  const autoProcessCommand = vscode.commands.registerCommand(
+    "cipher.autoProcessMaestroInput",
+    async () => {
+      try {
+        await autoProcessMaestroInput();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_auto_process",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error auto-processing: ${error}`);
+      }
+    }
+  );
+
+  // 🔧 UPDATED: Complete Maestro Guitar Practice Pipeline Command
+  const pipelineCommand = vscode.commands.registerCommand(
+    "cipher.maestroGuitarPipeline",
+    async () => {
+      try {
+        await runCompleteMaestroGuitarPipeline();
+
+        if (isBrainConnected()) {
+          const brainConnector = new BrainConnector();
+          (brainConnector as any).learnFromAction(
+            "command_full_pipeline",
+            "success",
+            {
+              timestamp: Date.now(),
+              source: "vscode_command",
+            }
+          );
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error running pipeline: ${error}`);
+      }
+    }
+  );
+
+  // Register all commands with context
+  context.subscriptions.push(
+    zipAnalyzeCommand,
+    buildModulesCommand,
+    importRequirementsCommand,
+    generateModuleCommand,
+    autoProcessCommand,
+    pipelineCommand
+  );
+
+  // Register context menu commands
+  registerContextMenuCommands(context);
+}
+
+/**
+ * Register context menu commands for file explorer
+ */
+function registerContextMenuCommands(context: vscode.ExtensionContext): void {
+  // Right-click on ZIP files
+  const zipContextCommand = vscode.commands.registerCommand(
+    "cipher.analyzeZipFromContext",
+    async (uri: vscode.Uri) => {
+      if (uri && uri.fsPath.endsWith(".zip")) {
+        const handler = new ZipFile();
+        await handler.processZipFile(uri.fsPath);
+      }
+    }
+  );
+
+  context.subscriptions.push(zipContextCommand);
+}
+
+/**
+ * Import requirements from the maestro-ai-input ZIP
+ * ✅ EXPORTED for use by other modules
+ */
+export async function importRequirementsFromZip(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage("No workspace folder found");
+    return;
+  }
+
+  // Look for maestro-ai-input directory
+  const maestroPath = vscode.Uri.joinPath(
+    workspaceFolder.uri,
+    "maestro-ai-input"
+  );
+
+  try {
+    const files = await vscode.workspace.fs.readDirectory(maestroPath);
+    const zipFiles = files.filter(([name]) => name.endsWith(".zip"));
+
+    if (zipFiles.length === 0) {
+      vscode.window.showWarningMessage(
+        "No ZIP files found in maestro-ai-input directory"
+      );
+      return;
+    }
+
+    // Process the first ZIP file found
+    const zipPath = vscode.Uri.joinPath(maestroPath, zipFiles[0][0]);
+    const handler = new ZipFile();
+    await handler.processZipFile(zipPath.fsPath);
+
+    vscode.window.showInformationMessage(
+      `✅ Requirements imported from ${zipFiles[0][0]}`
+    );
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `Error accessing maestro-ai-input: ${error}`
+    );
+  }
+}
+
+/**
+ * 🔧 UPDATED: Generate module from specification file
+ * ✅ EXPORTED for use by other modules
+ */
+export async function generateModuleFromSpec(): Promise<void> {
+  // Show quick pick for available specs
+  const specFiles = await findSpecificationFiles();
+
+  if (specFiles.length === 0) {
+    vscode.window.showWarningMessage("No specification files found");
+    return;
+  }
+
+  const selectedSpec = await vscode.window.showQuickPick(
+    specFiles.map((spec) => ({
+      label: spec.name,
+      description: spec.path,
+      spec: spec,
+    })),
+    { placeHolder: "Select specification to generate module from" }
+  );
+
+  if (selectedSpec) {
+    const builder = new MaestroGuitarModuleBuilder();
+    await builder.buildMaestroGuitarModules(selectedSpec.spec.path);
+  }
+}
+
+/**
+ * Find specification files in workspace
+ */
+async function findSpecificationFiles(): Promise<
+  Array<{ name: string; path: string }>
+> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return [];
+
+  const specFiles: Array<{ name: string; path: string }> = [];
+
+  // Search common spec locations
+  const searchPaths = [
+    "maestro-ai/ai-team-specs",
+    "specs",
+    "requirements",
+    "docs",
+  ];
+
+  for (const searchPath of searchPaths) {
+    try {
+      const uri = vscode.Uri.joinPath(workspaceFolder.uri, searchPath);
+      const files = await vscode.workspace.fs.readDirectory(uri);
+
+      for (const [fileName] of files) {
+        if (
+          fileName.includes("guitar") ||
+          fileName.includes("practice") ||
+          fileName.includes("spec") ||
+          fileName.includes("requirement")
+        ) {
+          specFiles.push({
+            name: fileName,
+            path: vscode.Uri.joinPath(uri, fileName).fsPath,
+          });
+        }
+      }
+    } catch {
+      // Directory doesn't exist, continue
+    }
+  }
+
+  return specFiles;
+}
+
+/**
+ * 🔧 UPDATED: Auto-process maestro-ai-input directory
+ * ✅ EXPORTED for use by other modules
+ */
+export async function autoProcessMaestroInput(): Promise<void> {
+  const progress = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Auto-processing Maestro AI Guitar Practice Input",
+      cancellable: true,
+    },
+    async (progress, token) => {
+      progress.report({ increment: 0, message: "Scanning for ZIP files..." });
+
+      // Step 1: Import Requirements
+      await importRequirementsFromZip();
+      progress.report({ increment: 25, message: "Requirements imported..." });
+
+      if (token.isCancellationRequested) return;
+
+      // Step 2: Build Modules
+      await maestroGuitarModuleBuilder();
+      progress.report({ increment: 50, message: "Modules built..." });
+
+      if (token.isCancellationRequested) return;
+
+      // Step 3: Validate Build
+      await validateBuild();
+      progress.report({ increment: 75, message: "Validating build..." });
+
+      if (token.isCancellationRequested) return;
+
+      progress.report({ increment: 100, message: "Processing complete!" });
+    }
+  );
+
+  vscode.window.showInformationMessage(
+    "🎸 Maestro AI guitar practice input processing complete!"
+  );
+}
+
+/**
+ * 🔧 UPDATED: Run complete Maestro Guitar Practice pipeline
+ * ✅ EXPORTED for use by other modules
+ */
+export async function runCompleteMaestroGuitarPipeline(): Promise<void> {
+  const steps = [
+    { name: "Import Requirements", action: importRequirementsFromZip },
+    { name: "Build Modules", action: maestroGuitarModuleBuilder },
+    { name: "Generate Components", action: generateModuleFromSpec },
+    { name: "Validate Build", action: validateBuild },
+    { name: "Update Route Map", action: updateRouteMap },
+  ];
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Maestro Guitar Pipeline - ${step.name}`,
+          cancellable: false,
+        },
+        async (progress) => {
+          progress.report({
+            increment: (i / steps.length) * 100,
+            message: `Running ${step.name}...`,
+          });
+
+          await step.action();
+        }
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Pipeline failed at ${step.name}: ${error}`
+      );
+      return;
+    }
+  }
+
+  vscode.window.showInformationMessage(
+    "🚀 Complete Maestro Guitar Practice pipeline executed successfully!"
+  );
+}
+
+/**
+ * 🔧 UPDATED: Validate the build with correct paths
+ */
+async function validateBuild(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return;
+
+  // 🔧 UPDATED: Correct module paths for Maestro.ai
+  const requiredModules = [
+    "src/components/guitar/tab-display.tsx",
+    "src/components/audio/audio-controller.tsx",
+    "src/components/audio/track-isolator.tsx",
+    "src/components/guitar/chord-overlay.tsx",
+    "src/hooks/useAudioEngine/useAudioEngine.tsx",
+    "src/utils/tabParser.ts",
+  ];
+
+  const missingModules: string[] = [];
+
+  for (const modulePath of requiredModules) {
+    try {
+      const uri = vscode.Uri.joinPath(workspaceFolder.uri, modulePath);
+      await vscode.workspace.fs.stat(uri);
+    } catch {
+      missingModules.push(modulePath);
+    }
+  }
+
+  if (missingModules.length > 0) {
+    const message = `⚠️ Missing modules detected:\n${missingModules.join("\n")}`;
+    vscode.window.showWarningMessage(message);
+  } else {
+    vscode.window.showInformationMessage(
+      "✅ All Maestro Guitar Practice modules validated successfully!"
+    );
+  }
+}
+
+/**
+ * 🔧 UPDATED: Update maestro-route-map.json with new modules
+ */
+async function updateRouteMap(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return;
+
+  try {
+    const routeMapUri = vscode.Uri.joinPath(
+      workspaceFolder.uri,
+      "maestro-route-map.json"
+    );
+    const routeMapContent = await vscode.workspace.fs.readFile(routeMapUri);
+    const routeMap = JSON.parse(routeMapContent.toString());
+
+    // 🔧 UPDATED: Update with correct module paths and names
+    if (routeMap.routes && routeMap.routes.practice) {
+      routeMap.routes.practice.modules = {
+        "tab-display": "./src/components/guitar/tab-display",
+        "audio-controller": "./src/components/audio/audio-controller",
+        "track-isolator": "./src/components/audio/track-isolator",
+        "chord-overlay": "./src/components/guitar/chord-overlay",
+        "audio-engine": "./src/hooks/useAudioEngine/useAudioEngine",
+        "tab-parser": "./src/utils/tabParser",
+      };
+
+      routeMap.routes.practice.status = "implemented";
+      routeMap.routes.practice.lastUpdated = new Date().toISOString();
+    }
+
+    // Write updated route map
+    const updatedContent = JSON.stringify(routeMap, null, 2);
+    await vscode.workspace.fs.writeFile(
+      routeMapUri,
+      Buffer.from(updatedContent)
+    );
+
+    vscode.window.showInformationMessage(
+      "✅ Route map updated with Maestro Guitar Practice modules"
+    );
+  } catch (error) {
+    vscode.window.showWarningMessage(`Could not update route map: ${error}`);
+  }
+}
+
+/**
+ * 🔧 UPDATED: Setup watcher for maestro-ai-input directory
+ */
+export function setupMaestroWatcher(context: vscode.ExtensionContext): void {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return;
+
+  const maestroPattern = new vscode.RelativePattern(
+    workspaceFolder,
+    "maestro-ai-input/**/*.zip"
+  );
+  const watcher = vscode.workspace.createFileSystemWatcher(maestroPattern);
+
+  watcher.onDidCreate(async (uri) => {
+    const response = await vscode.window.showInformationMessage(
+      `New ZIP file detected: ${uri.fsPath}. Process automatically?`,
+      "Yes",
+      "No"
+    );
+
+    if (response === "Yes") {
+      await autoProcessMaestroInput();
+    }
+  });
+
+  context.subscriptions.push(watcher);
+}

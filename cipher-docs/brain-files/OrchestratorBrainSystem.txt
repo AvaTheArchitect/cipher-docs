@@ -1,0 +1,1673 @@
+/**
+ * 🧠 Orchestrator Brain System - Command Center & UI Controller
+ * Location: .vscode-extensions/cipher-autonomous-dev/src/brain/OrchestratorBrainSystem.ts
+ * Updated: September 1st, 2025 - v1.5 CORRECTED VERSION
+ *
+ * PURPOSE: Two-path command orchestration with embedded UI management
+ * Path 1: Brain → ZipFile → ModuleBuilder → Specialized Handlers
+ * Path 2: Brain → ModuleBuilder → Specialized Handlers (direct from .md)
+ */
+
+import * as path from "path";
+import * as vscode from "vscode";
+import {
+  displayBrainSuggestions,
+  displayProgress,
+} from "../shared/displayUtils";
+import { getBrainInterface, isBrainAvailable } from "../shared/utils";
+import { BrainConnector } from "./BrainConnector";
+
+// Import Worker Handlers
+import { ZipFile } from "../handlers/import-export/zipFile";
+import { MaestroGuitarModuleBuilder } from "../handlers/music/maestroGuitarModuleBuilder";
+
+// ======================================
+// 🧠 INTERFACES & TYPES
+// ======================================
+
+export interface OrchestratorContext {
+  command: string;
+  source: "zip" | "markdown" | "manual";
+  scope?: "basic" | "complete" | "analysis" | "import" | "generate";
+  parameters?: any;
+  userId?: string;
+  sessionId?: string;
+}
+
+export interface OrchestrationResult {
+  success: boolean;
+  message: string;
+  delegates: string[];
+  filesCreated: Array<{ name: string; path: string; handler: string }>;
+  filesSkipped: Array<{ name: string; reason: string }>;
+  errors: Array<{ error: string; handler?: string; context?: string }>;
+  metrics: {
+    totalTime: number;
+    moduleCount: number;
+    handlerCount: number;
+  };
+  nextSteps?: string[];
+  brainSuggestions?: string[];
+}
+
+// ======================================
+// 🎪 EMBEDDED UI MANAGEMENT SYSTEMS
+// ======================================
+
+interface BuildPlan {
+  modules: Array<{
+    name: string;
+    path: string;
+    dependencies: string[];
+    complexity: "low" | "medium" | "high";
+    priority: number;
+    hasWebAudio: boolean;
+    hasCanvas: boolean;
+    hasSVG: boolean;
+    description: string;
+    moduleType: "component" | "hook" | "util" | "test" | "engine" | "worklet";
+    templateSource?: "spec" | "starter" | "rich" | "generated";
+    isUpdate?: boolean;
+  }>;
+  buildOrder: string[];
+  estimatedTime: number;
+  dependencies: string[];
+  conflicts: string[];
+  processedSpecs: string[];
+}
+
+interface ToastOptions {
+  title?: string;
+  modal?: boolean;
+  timeout?: number;
+  buttons?: Array<{
+    title: string;
+    action: string;
+    isCloseAffordance?: boolean;
+  }>;
+  showProgress?: boolean;
+  location?: vscode.ProgressLocation;
+}
+
+interface SuggestionItem {
+  title: string;
+  description: string;
+  action: string;
+  priority: "high" | "medium" | "low";
+  category?: "install" | "configure" | "test" | "optimize" | "debug";
+  icon?: string;
+  requiresRestart?: boolean;
+  estimatedTime?: string;
+}
+
+// ======================================
+// 🍞 EMBEDDED TOAST NOTIFICATIONS MANAGER
+// ======================================
+
+class EmbeddedToastManager {
+  async showSuccess(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`✅ Success: ${message}`);
+    const finalMessage = options.title
+      ? `${options.title}: ${message}`
+      : message;
+
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map((b) => b.title);
+      const selection = await vscode.window.showInformationMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+
+      if (selection) {
+        const selectedButton = options.buttons.find(
+          (b) => b.title === selection
+        );
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showInformationMessage(finalMessage);
+    }
+
+    return undefined;
+  }
+
+  async showInfo(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`ℹ️ Info: ${message}`);
+    const finalMessage = options.title
+      ? `${options.title}: ${message}`
+      : message;
+
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map((b) => b.title);
+      const selection = await vscode.window.showInformationMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+
+      if (selection) {
+        const selectedButton = options.buttons.find(
+          (b) => b.title === selection
+        );
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showInformationMessage(finalMessage);
+    }
+
+    return undefined;
+  }
+
+  async showError(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`❌ Error: ${message}`);
+    const finalMessage = options.title
+      ? `${options.title}: ${message}`
+      : message;
+
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map((b) => b.title);
+      const selection = await vscode.window.showErrorMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+
+      if (selection) {
+        const selectedButton = options.buttons.find(
+          (b) => b.title === selection
+        );
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showErrorMessage(finalMessage);
+    }
+
+    return undefined;
+  }
+
+  async showContextualNotification(context: {
+    action: string;
+    success: boolean;
+    moduleName?: string;
+    filePath?: string;
+    error?: Error;
+    duration?: number;
+    nextSteps?: string[];
+  }): Promise<string | undefined> {
+    const {
+      action,
+      success,
+      moduleName,
+      filePath,
+      error,
+      duration,
+      nextSteps,
+    } = context;
+
+    let message = "";
+    let buttons: Array<{ title: string; action: string }> = [];
+
+    if (success) {
+      switch (action) {
+        case "module_built":
+          message = moduleName
+            ? `Module "${moduleName}" built successfully`
+            : "Module built successfully";
+
+          buttons = [
+            { title: "Open File", action: "open_file" },
+            { title: "Test Module", action: "test_module" },
+          ];
+          break;
+
+        case "build_complete":
+          message = duration
+            ? `Build completed in ${duration}s`
+            : "Build completed successfully";
+
+          buttons = [
+            { title: "View Results", action: "view_results" },
+            { title: "Test Extension", action: "test_extension" },
+          ];
+          break;
+
+        default:
+          message = `${action} completed successfully`;
+      }
+
+      if (nextSteps && nextSteps.length > 0) {
+        buttons.push({ title: "Next Steps", action: "show_next_steps" });
+      }
+
+      return await this.showSuccess(message, { buttons });
+    } else {
+      const errorMessage = error?.message || "Unknown error occurred";
+
+      switch (action) {
+        case "module_build":
+          message = moduleName
+            ? `Failed to build module "${moduleName}": ${errorMessage}`
+            : `Module build failed: ${errorMessage}`;
+          break;
+
+        default:
+          message = `${action} failed: ${errorMessage}`;
+      }
+
+      buttons = [
+        { title: "View Details", action: "view_error_details" },
+        { title: "Retry", action: "retry_action" },
+      ];
+
+      return await this.showError(message, { buttons });
+    }
+  }
+}
+
+// ======================================
+// 🎪 EMBEDDED POPUP RESULTS MANAGER
+// ======================================
+
+class EmbeddedPopupManager {
+  private outputChannel: vscode.OutputChannel;
+
+  constructor() {
+    this.outputChannel = vscode.window.createOutputChannel(
+      "Cipher Build Results"
+    );
+  }
+
+  async displayBuildResults(
+    buildPlan: BuildPlan,
+    options: {
+      showInModal?: boolean;
+      includeNextSteps?: boolean;
+      includeBrainSuggestions?: boolean;
+      theme?: "default" | "success" | "warning" | "error";
+    } = {}
+  ): Promise<void> {
+    const {
+      showInModal = true,
+      includeNextSteps = true,
+      includeBrainSuggestions = true,
+      theme = "success",
+    } = options;
+
+    console.log("🎪 Displaying build results popup...");
+
+    const htmlContent = this.generateResultsHTML(buildPlan, {
+      includeNextSteps,
+      theme,
+    });
+
+    if (showInModal) {
+      await this.showResultsModal(htmlContent);
+    } else {
+      await this.showResultsPanel(buildPlan);
+    }
+
+    if (includeBrainSuggestions) {
+      await this.displayBrainSuggestionsForResults(buildPlan);
+    }
+
+    this.logResultsToChannel(buildPlan);
+  }
+
+  private generateResultsHTML(
+    buildPlan: BuildPlan,
+    options: { includeNextSteps: boolean; theme: string }
+  ): string {
+    const { modules, buildOrder, estimatedTime, dependencies, conflicts } =
+      buildPlan;
+    const { includeNextSteps, theme } = options;
+
+    const themeColors = this.getThemeColors(theme);
+    const successCount = modules.filter(
+      (m) => !conflicts.some((c) => c.includes(m.name))
+    ).length;
+    const conflictCount = conflicts.length;
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎸 Maestro Build Results</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; 
+            padding: 20px;
+            background: linear-gradient(135deg, ${themeColors.background});
+            color: ${themeColors.text};
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: ${themeColors.cardBackground};
+            border-radius: 16px;
+            box-shadow: 0 8px 32px ${themeColors.shadow};
+            backdrop-filter: blur(10px);
+            border: 1px solid ${themeColors.border};
+            overflow: hidden;
+        }
+        .header {
+            background: ${themeColors.headerBackground};
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid ${themeColors.border};
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.2em;
+            font-weight: 600;
+            background: ${themeColors.titleGradient};
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 24px;
+            background: ${themeColors.statsBackground};
+        }
+        .stat-card {
+            background: ${themeColors.cardBackground};
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid ${themeColors.border};
+        }
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 8px 0;
+            color: ${themeColors.accent};
+        }
+        .modules-list {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .module-item {
+            background: ${themeColors.moduleBackground};
+            margin: 12px 0;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid ${themeColors.accent};
+        }
+        .module-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: ${themeColors.moduleTitle};
+            margin-bottom: 8px;
+        }
+        ${
+          includeNextSteps
+            ? `
+        .next-steps {
+            background: ${themeColors.infoBackground};
+            margin: 16px 24px;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid ${themeColors.infoBorder};
+        }
+        .next-steps h3 {
+            margin-top: 0;
+            color: ${themeColors.infoTitle};
+        }
+        .next-steps ul {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        `
+            : ""
+        }
+        .footer {
+            background: ${themeColors.footerBackground};
+            padding: 20px 24px;
+            text-align: center;
+            border-top: 1px solid ${themeColors.border};
+            color: ${themeColors.footerText};
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎸 Maestro Build Results</h1>
+            <p>Guitar Module Generation Complete</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${successCount}</div>
+                <div>Modules Built</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${conflictCount}</div>
+                <div>Conflicts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${estimatedTime}s</div>
+                <div>Build Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${dependencies.length}</div>
+                <div>Dependencies</div>
+            </div>
+        </div>
+        
+        <div class="modules-list">
+            <h3 style="padding: 0 8px;">Generated Modules (${successCount})</h3>
+            ${modules
+              .map(
+                (module) => `
+                <div class="module-item">
+                    <div class="module-name">${module.name}</div>
+                    <div>Type: ${module.moduleType} | Source: ${module.templateSource || "generated"}</div>
+                </div>
+            `
+              )
+              .join("")}
+        </div>
+        
+        ${
+          includeNextSteps
+            ? `
+        <div class="next-steps">
+            <h3>🎯 Next Steps</h3>
+            <ul>
+                <li>🧪 <strong>Test the generated modules:</strong> Press F5 to launch the extension host</li>
+                <li>🎨 <strong>Customize the styling:</strong> Add your own CSS classes and styles</li>
+                <li>🔗 <strong>Connect to audio engine:</strong> Wire up the Web Audio API connections</li>
+                <li>📱 <strong>Add mobile support:</strong> Test and optimize for touch interactions</li>
+                <li>🧠 <strong>Integrate with Brain system:</strong> Connect to Maestro.ai intelligence layer</li>
+            </ul>
+        </div>
+        `
+            : ""
+        }
+        
+        <div class="footer">
+            <p>🧠 Generated by Cipher Maestro Builder with Brain Intelligence</p>
+            <p style="font-size: 0.9em; opacity: 0.8;">
+                Build completed at ${new Date().toLocaleTimeString()}
+            </p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+
+  private async showResultsModal(htmlContent: string): Promise<void> {
+    const panel = vscode.window.createWebviewPanel(
+      "maestroBuildResults",
+      "🎸 Maestro Build Results",
+      vscode.ViewColumn.Beside,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+      }
+    );
+
+    panel.webview.html = htmlContent;
+
+    panel.onDidDispose(() => {
+      console.log("🎪 Build results panel closed");
+    });
+  }
+
+  private async showResultsPanel(buildPlan: BuildPlan): Promise<void> {
+    this.outputChannel.clear();
+    this.outputChannel.appendLine("🎸 MAESTRO BUILD RESULTS");
+    this.outputChannel.appendLine("=========================");
+    this.outputChannel.appendLine("");
+    this.outputChannel.appendLine(
+      `✅ Successfully built ${buildPlan.modules.length} modules`
+    );
+    this.outputChannel.appendLine(
+      `⏱️  Total build time: ${buildPlan.estimatedTime}s`
+    );
+    this.outputChannel.show();
+  }
+
+  private async displayBrainSuggestionsForResults(
+    buildPlan: BuildPlan
+  ): Promise<void> {
+    try {
+      const suggestions = this.generateBrainSuggestions(buildPlan);
+      const suggestionStrings = suggestions.map(
+        (s) => `${s.title}: ${s.description}`
+      );
+      await displayBrainSuggestions(suggestionStrings);
+    } catch (error) {
+      console.warn("Could not display brain suggestions:", error);
+    }
+  }
+
+  private generateBrainSuggestions(buildPlan: BuildPlan): Array<{
+    title: string;
+    description: string;
+    action: string;
+    priority: "high" | "medium" | "low";
+  }> {
+    const suggestions: Array<{
+      title: string;
+      description: string;
+      action: string;
+      priority: "high" | "medium" | "low";
+    }> = [];
+
+    const hasAudioModules = buildPlan.modules.some((m) => m.hasWebAudio);
+    const hasConflicts = buildPlan.conflicts.length > 0;
+
+    if (hasConflicts) {
+      suggestions.push({
+        title: "⚠️ Resolve Build Conflicts",
+        description: `${buildPlan.conflicts.length} conflicts detected. Review and resolve before testing.`,
+        action: "resolve-conflicts",
+        priority: "high",
+      });
+    }
+
+    if (hasAudioModules) {
+      suggestions.push({
+        title: "🎵 Test Audio Components",
+        description:
+          "Audio modules generated. Test with headphones for best experience.",
+        action: "test-audio",
+        priority: "high",
+      });
+    }
+
+    suggestions.push({
+      title: "🚀 Launch Extension Host",
+      description:
+        "Press F5 to test your new modules in a development environment.",
+      action: "launch-extension",
+      priority: "high",
+    });
+
+    return suggestions;
+  }
+
+  private logResultsToChannel(buildPlan: BuildPlan): void {
+    console.log("🎪 Build Results Summary:");
+    console.log(`   Modules: ${buildPlan.modules.length}`);
+    console.log(`   Dependencies: ${buildPlan.dependencies.length}`);
+    console.log(`   Conflicts: ${buildPlan.conflicts.length}`);
+  }
+
+  private getThemeColors(theme: string): Record<string, string> {
+    const themes = {
+      success: {
+        background: "#0f2027, #203a43, #2c5530",
+        cardBackground: "rgba(32, 58, 67, 0.8)",
+        text: "#e8f5e8",
+        border: "rgba(52, 168, 83, 0.3)",
+        headerBackground: "rgba(15, 32, 39, 0.9)",
+        titleGradient: "linear-gradient(45deg, #34a853, #4caf50)",
+        accent: "#34a853",
+        shadow: "rgba(0, 0, 0, 0.4)",
+        statsBackground: "rgba(15, 32, 39, 0.6)",
+        moduleBackground: "rgba(44, 85, 48, 0.6)",
+        moduleTitle: "#ffffff",
+        infoBackground: "rgba(52, 168, 83, 0.2)",
+        infoBorder: "rgba(52, 168, 83, 0.5)",
+        infoTitle: "#4caf50",
+        footerBackground: "rgba(15, 32, 39, 0.9)",
+        footerText: "#a5d6a7",
+      },
+      default: {
+        background: "#1e1e2e, #313244",
+        cardBackground: "rgba(49, 50, 68, 0.8)",
+        text: "#cdd6f4",
+        border: "rgba(137, 142, 204, 0.3)",
+        headerBackground: "rgba(30, 30, 46, 0.9)",
+        titleGradient: "linear-gradient(45deg, #89b4fa, #cba6f7)",
+        accent: "#89b4fa",
+        shadow: "rgba(0, 0, 0, 0.3)",
+        statsBackground: "rgba(17, 17, 27, 0.5)",
+        moduleBackground: "rgba(69, 71, 90, 0.6)",
+        moduleTitle: "#f2f4f8",
+        infoBackground: "rgba(137, 180, 250, 0.2)",
+        infoBorder: "rgba(137, 180, 250, 0.5)",
+        infoTitle: "#89b4fa",
+        footerBackground: "rgba(17, 17, 27, 0.8)",
+        footerText: "#a6adc8",
+      },
+    };
+
+    return themes[theme as keyof typeof themes] || themes.default;
+  }
+}
+
+// ======================================
+// 🎯 EMBEDDED SUGGESTIONS MANAGER
+// ======================================
+
+class EmbeddedSuggestionsManager {
+  async showNextStepsSuggestions(context: {
+    modulesBuilt: number;
+    hasErrors: boolean;
+    hasAudio: boolean;
+    hasSVG: boolean;
+    buildTime: number;
+  }): Promise<string | undefined> {
+    const suggestions: SuggestionItem[] = [];
+
+    suggestions.push({
+      title: "Test Extension (F5)",
+      description: "Launch extension host to test your new modules",
+      action: "test_extension",
+      priority: "high",
+      category: "test",
+      estimatedTime: "2 min",
+    });
+
+    if (context.hasAudio) {
+      suggestions.push({
+        title: "Test Audio Components",
+        description: "Verify audio playback and Web Audio API integration",
+        action: "test_audio",
+        priority: "high",
+        category: "test",
+        estimatedTime: "5 min",
+      });
+    }
+
+    if (context.hasSVG) {
+      suggestions.push({
+        title: "Optimize SVG Performance",
+        description: "Review SVG rendering performance for large tablatures",
+        action: "optimize_svg",
+        priority: "medium",
+        category: "optimize",
+        estimatedTime: "10 min",
+      });
+    }
+
+    if (context.hasErrors) {
+      suggestions.push({
+        title: "Review Build Errors",
+        description: "Check and resolve any build conflicts or errors",
+        action: "review_errors",
+        priority: "high",
+        category: "debug",
+        estimatedTime: "15 min",
+      });
+    }
+
+    suggestions.push({
+      title: "Configure Brain Integration",
+      description: "Set up Maestro.ai Brain system for enhanced intelligence",
+      action: "configure_brain",
+      priority: "medium",
+      category: "configure",
+      estimatedTime: "5 min",
+    });
+
+    return await this.showSuggestionQuickPick(suggestions, {
+      title: "What would you like to do next?",
+      placeholder: "Choose your next action...",
+    });
+  }
+
+  async showDebuggingSuggestions(
+    error: Error,
+    context: {
+      action: string;
+      moduleName?: string;
+      filePath?: string;
+      context?: string;
+    }
+  ): Promise<string | undefined> {
+    const suggestions: SuggestionItem[] = [
+      {
+        title: "View Error Details",
+        description: "Open detailed error information in output panel",
+        action: "view_error_details",
+        priority: "high",
+        category: "debug",
+      },
+      {
+        title: "Check File Permissions",
+        description: "Verify read/write permissions for target directories",
+        action: "check_permissions",
+        priority: "medium",
+        category: "debug",
+      },
+      {
+        title: "Reset Build Environment",
+        description: "Clean temporary files and reset build state",
+        action: "reset_build",
+        priority: "medium",
+        category: "debug",
+      },
+    ];
+
+    if (context.moduleName) {
+      suggestions.unshift({
+        title: "Retry Module Build",
+        description: `Retry building ${context.moduleName} with fresh state`,
+        action: "retry_module",
+        priority: "high",
+        category: "debug",
+      });
+    }
+
+    return await this.showSuggestionQuickPick(suggestions, {
+      title: `Error in ${context.action}`,
+      placeholder: "Choose a debugging action...",
+    });
+  }
+
+  private async showSuggestionQuickPick(
+    suggestions: SuggestionItem[],
+    options: { title?: string; placeholder?: string } = {}
+  ): Promise<string | undefined> {
+    const quickPick = vscode.window.createQuickPick();
+
+    quickPick.title = options.title || "Maestro AI Suggestions";
+    quickPick.placeholder =
+      options.placeholder || "Select an action to perform...";
+    quickPick.ignoreFocusOut = true;
+    quickPick.matchOnDescription = true;
+
+    quickPick.items = suggestions.map((suggestion) => ({
+      label: `${this.getDefaultIcon(suggestion.category)} ${suggestion.title}`,
+      description: suggestion.description,
+      detail: this.formatSuggestionDetail(suggestion),
+      action: suggestion.action,
+    }));
+
+    return new Promise<string | undefined>((resolve) => {
+      quickPick.onDidAccept(() => {
+        const selected = quickPick.selectedItems[0] as any;
+        quickPick.dispose();
+        resolve(selected?.action);
+      });
+
+      quickPick.onDidHide(() => {
+        quickPick.dispose();
+        resolve(undefined);
+      });
+
+      quickPick.show();
+    });
+  }
+
+  private getDefaultIcon(category?: string): string {
+    const icons = {
+      install: "$(extensions)",
+      configure: "$(settings-gear)",
+      test: "$(beaker)",
+      optimize: "$(rocket)",
+      debug: "$(debug-alt)",
+    };
+    return icons[category as keyof typeof icons] || "$(lightbulb)";
+  }
+
+  private formatSuggestionDetail(suggestion: SuggestionItem): string {
+    let detail = `Priority: ${suggestion.priority}`;
+
+    if (suggestion.estimatedTime) {
+      detail += ` | Est. time: ${suggestion.estimatedTime}`;
+    }
+
+    if (suggestion.requiresRestart) {
+      detail += " | Requires restart";
+    }
+
+    return detail;
+  }
+}
+
+// ======================================
+// 🎯 ORCHESTRATOR BRAIN SYSTEM (COMMAND CENTER)
+// ======================================
+
+export class OrchestratorBrainSystem {
+  private static instance: OrchestratorBrainSystem;
+  private brainConnector: BrainConnector;
+  public toastManager: EmbeddedToastManager;
+  public popupManager: EmbeddedPopupManager;
+  public suggestionsManager: EmbeddedSuggestionsManager;
+
+  private constructor() {
+    this.brainConnector = new BrainConnector();
+    this.toastManager = new EmbeddedToastManager();
+    this.popupManager = new EmbeddedPopupManager();
+    this.suggestionsManager = new EmbeddedSuggestionsManager();
+
+    console.log(
+      "🧠 OrchestratorBrainSystem initialized as command center with embedded UI"
+    );
+  }
+
+  public static getInstance(): OrchestratorBrainSystem {
+    if (!OrchestratorBrainSystem.instance) {
+      OrchestratorBrainSystem.instance = new OrchestratorBrainSystem();
+    }
+    return OrchestratorBrainSystem.instance;
+  }
+
+  // ======================================
+  // 🎯 COMMAND ROUTING - Two Primary Paths
+  // ======================================
+
+  /**
+   * PATH 1: Process ZIP file → Extract → Build modules
+   * Brain → ZipFile Handler → ModuleBuilder → Specialized Handlers
+   * INCLUDES AUTOMATIC UI DISPLAY
+   */
+  public async executeZipToModulePipeline(
+    context: OrchestratorContext = { command: "zip-pipeline", source: "zip" }
+  ): Promise<OrchestrationResult> {
+    const startTime = Date.now();
+    console.log("🧠 Brain: Executing ZIP → Module pipeline");
+
+    try {
+      // Step 1: Show initial progress
+      await this.toastManager.showInfo("Starting ZIP processing pipeline...");
+
+      // Step 2: Initialize ZIP processor
+      const zipProcessor = new ZipFile();
+      displayProgress("Initializing ZIP processor...", 10);
+
+      // Step 3: Process ZIP files
+      const zipResults = await zipProcessor.autoProcessInputFolder({
+        extractToMaestro: true,
+        createBackups: true,
+        organizeByContent: true,
+        autoTriggerBuilder: true,
+      });
+
+      displayProgress("ZIP processing complete, starting module build...", 40);
+
+      // Step 4: Delegate to ModuleBuilder
+      const moduleBuilder = new MaestroGuitarModuleBuilder();
+      const buildResults = await moduleBuilder.buildMaestroGuitarModules();
+
+      displayProgress("Module build complete, processing results...", 80);
+
+      // Step 5: Aggregate results
+      const orchestrationResult = this.aggregateResults({
+        zipResults,
+        buildResults,
+        startTime,
+        context,
+        delegates: [
+          "ZipFile",
+          "MaestroGuitarModuleBuilder",
+          ...this.extractDelegatesFromBuildResults(buildResults),
+        ],
+      });
+
+      displayProgress("Displaying results...", 90);
+
+      // Step 6: AUTOMATIC UI DISPLAY (no separate command)
+      await this.displayOrchestrationResults(orchestrationResult);
+
+      console.log("🧠 Brain: ZIP pipeline completed successfully");
+      return orchestrationResult;
+    } catch (error) {
+      const errorResult = this.createErrorResult(error, context, startTime);
+      await this.handleOrchestrationError(errorResult);
+      return errorResult;
+    }
+  }
+
+  /**
+   * PATH 2: Process markdown directly → Build modules
+   * Brain → ModuleBuilder → Specialized Handlers
+   * INCLUDES AUTOMATIC UI DISPLAY
+   */
+  public async executeMarkdownToModulePipeline(
+    markdownPath?: string,
+    context: OrchestratorContext = {
+      command: "markdown-pipeline",
+      source: "markdown",
+    }
+  ): Promise<OrchestrationResult> {
+    const startTime = Date.now();
+    console.log("🧠 Brain: Executing Markdown → Module pipeline");
+
+    try {
+      // Step 1: Show initial progress
+      await this.toastManager.showInfo(
+        "Starting markdown processing pipeline..."
+      );
+
+      // Step 2: Scan for markdown files if no path provided
+      if (!markdownPath) {
+        console.log(
+          "🔍 Brain: Scanning maestro-ai-input for markdown files..."
+        );
+        markdownPath = await this.scanInputFolderForMarkdown();
+
+        if (!markdownPath) {
+          await this.toastManager.showInfo(
+            "No markdown files found in maestro-ai-input folder"
+          );
+          console.log(
+            "⚠️ Brain: No .md files found in input folder, using default build"
+          );
+        } else {
+          console.log(
+            `📄 Brain: Found markdown file: ${path.basename(markdownPath)}`
+          );
+          await this.toastManager.showInfo(
+            `Processing: ${path.basename(markdownPath)}`
+          );
+        }
+      }
+
+      // Step 3: Verify markdown file exists and is readable
+      if (markdownPath && !(await this.verifyMarkdownFile(markdownPath))) {
+        throw new Error(`Cannot read markdown file: ${markdownPath}`);
+      }
+
+      // Step 4: Initialize ModuleBuilder directly
+      const moduleBuilder = new MaestroGuitarModuleBuilder();
+      displayProgress("Processing markdown specifications...", 20);
+
+      // Step 5: Build modules from markdown - PASS THE PATH
+      const buildResults =
+        await moduleBuilder.buildMaestroGuitarModules(markdownPath);
+
+      displayProgress("Module build complete, processing results...", 80);
+
+      // Step 6: Aggregate results
+      const orchestrationResult = this.aggregateResults({
+        buildResults,
+        startTime,
+        context,
+        delegates: [
+          "MaestroGuitarModuleBuilder",
+          ...this.extractDelegatesFromBuildResults(buildResults),
+        ],
+      });
+
+      displayProgress("Displaying results...", 90);
+
+      // Step 7: AUTOMATIC UI DISPLAY (no separate command)
+      await this.displayOrchestrationResults(orchestrationResult);
+
+      console.log("🧠 Brain: Markdown pipeline completed successfully");
+      return orchestrationResult;
+    } catch (error) {
+      const errorResult = this.createErrorResult(error, context, startTime);
+      await this.handleOrchestrationError(errorResult);
+      return errorResult;
+    }
+  }
+
+  // ======================================
+  // 🎪 UI ORCHESTRATION - AUTOMATIC DISPLAY
+  // ======================================
+
+  /**
+   * AUTOMATIC UI Display - triggered during pipeline completion
+   * Displays: Popup results + Toast notifications + Next step suggestions
+   */
+  private async displayOrchestrationResults(
+    result: OrchestrationResult
+  ): Promise<void> {
+    try {
+      console.log("🎪 Brain: Automatically displaying UI results...");
+
+      // 1. Show contextual toast notification (AUTOMATIC)
+      const toastAction = await this.toastManager.showContextualNotification({
+        action: result.delegates.length > 1 ? "build_complete" : "module_built",
+        success: result.success,
+        duration: result.metrics.totalTime,
+        nextSteps: result.nextSteps,
+      });
+
+      // Handle toast action if user clicked a button
+      if (toastAction) {
+        await this.handleToastAction(toastAction, result);
+      }
+
+      // 2. Show popup results (AUTOMATIC)
+      const buildPlan = this.convertToBuildPlan(result);
+      await this.popupManager.displayBuildResults(buildPlan, {
+        showInModal: true,
+        includeNextSteps: true,
+        includeBrainSuggestions: true,
+        theme: result.success ? "success" : "error",
+      });
+
+      // 3. Show next steps suggestions (AUTOMATIC)
+      if (result.success) {
+        const nextAction =
+          await this.suggestionsManager.showNextStepsSuggestions({
+            modulesBuilt: result.metrics.moduleCount,
+            hasErrors: result.errors.length > 0,
+            hasAudio: this.hasAudioModules(result),
+            hasSVG: this.hasSVGModules(result),
+            buildTime: result.metrics.totalTime,
+          });
+
+        if (nextAction) {
+          await this.handleNextStepAction(nextAction, result);
+        }
+      }
+
+      // 4. Log to brain for learning (AUTOMATIC)
+      await this.logToBrainSystem(result);
+    } catch (error) {
+      console.error("🧠 Brain: Error displaying results:", error);
+      await this.toastManager.showError("Failed to display results completely");
+    }
+  }
+
+  /**
+   * AUTOMATIC Error handling with Brain-controlled UI
+   */
+  private async handleOrchestrationError(
+    errorResult: OrchestrationResult
+  ): Promise<void> {
+    console.log("🧠 Brain: Automatically handling orchestration error...");
+
+    // 1. Show error toast with proper context (AUTOMATIC)
+    const errorAction = await this.toastManager.showContextualNotification({
+      action: errorResult.delegates[0] || "unknown_action",
+      success: false,
+      error: new Error(errorResult.message),
+      nextSteps: ["Check logs", "Retry operation", "Report issue"],
+    });
+
+    // 2. Handle error action if user clicked a button
+    if (errorAction) {
+      await this.handleDebugAction(errorAction, errorResult);
+    }
+
+    // 3. Show debugging suggestions (AUTOMATIC)
+    const debugAction = await this.suggestionsManager.showDebuggingSuggestions(
+      new Error(errorResult.message),
+      {
+        action: errorResult.delegates[0] || "unknown",
+        context: errorResult.errors[0]?.context,
+      }
+    );
+
+    if (debugAction) {
+      await this.handleDebugAction(debugAction, errorResult);
+    }
+
+    // 4. Log error to brain (AUTOMATIC)
+    await this.logToBrainSystem(errorResult);
+  }
+
+  // ======================================
+  // 🔄 RESULT PROCESSING & AGGREGATION
+  // ======================================
+
+  private aggregateResults(params: {
+    zipResults?: any;
+    buildResults: any;
+    startTime: number;
+    context: OrchestratorContext;
+    delegates: string[];
+  }): OrchestrationResult {
+    const { zipResults, buildResults, startTime, context, delegates } = params;
+    const totalTime = Math.round((Date.now() - startTime) / 1000);
+
+    return {
+      success: buildResults.success !== false,
+      message: this.createSuccessMessage(buildResults, delegates),
+      delegates,
+      filesCreated: this.extractCreatedFiles(buildResults),
+      filesSkipped: buildResults.skipped || [],
+      errors: buildResults.errors || [],
+      metrics: {
+        totalTime,
+        moduleCount: buildResults.modules?.length || 0,
+        handlerCount: delegates.length,
+      },
+      nextSteps: this.generateNextSteps(buildResults, context),
+      brainSuggestions: this.generateBrainSuggestions(buildResults),
+    };
+  }
+
+  private extractDelegatesFromBuildResults(buildResults: any): string[] {
+    return buildResults.delegates || [];
+  }
+
+  private extractCreatedFiles(
+    buildResults: any
+  ): Array<{ name: string; path: string; handler: string }> {
+    if (!buildResults.modules) return [];
+
+    return buildResults.modules.map((module: any) => ({
+      name: module.name || "Unknown Module",
+      path: module.path || "",
+      handler: module.createdBy || "Unknown Handler",
+    }));
+  }
+
+  private createSuccessMessage(buildResults: any, delegates: string[]): string {
+    const moduleCount = buildResults.modules?.length || 0;
+    const handlerCount = delegates.length;
+
+    return `Successfully built ${moduleCount} modules using ${handlerCount} handlers`;
+  }
+
+  private generateNextSteps(
+    buildResults: any,
+    context: OrchestratorContext
+  ): string[] {
+    const steps = [
+      "Test the extension (F5) to verify module functionality",
+      "Review generated files for accuracy and completeness",
+    ];
+
+    if (context.source === "zip") {
+      steps.unshift("Verify extracted files are properly organized");
+    }
+
+    if (buildResults.errors && buildResults.errors.length > 0) {
+      steps.unshift("Resolve build errors before testing");
+    }
+
+    return steps;
+  }
+
+  private generateBrainSuggestions(buildResults: any): string[] {
+    const suggestions: string[] = [];
+
+    if (buildResults.modules?.some((m: any) => m.hasAudio)) {
+      suggestions.push("Consider testing audio components with headphones");
+    }
+
+    if (buildResults.modules?.some((m: any) => m.hasSVG)) {
+      suggestions.push("Optimize SVG components for performance");
+    }
+
+    suggestions.push(
+      "Connect modules to Maestro.ai Brain system for enhanced intelligence"
+    );
+
+    return suggestions;
+  }
+
+  private createErrorResult(
+    error: any,
+    context: OrchestratorContext,
+    startTime: number
+  ): OrchestrationResult {
+    return {
+      success: false,
+      message: `Pipeline failed: ${error.message || String(error)}`,
+      delegates: [],
+      filesCreated: [],
+      filesSkipped: [],
+      errors: [
+        { error: error.message || String(error), context: context.command },
+      ],
+      metrics: {
+        totalTime: Math.round((Date.now() - startTime) / 1000),
+        moduleCount: 0,
+        handlerCount: 0,
+      },
+    };
+  }
+
+  // ======================================
+  // 🔧 FILE READING & VERIFICATION UTILITIES
+  // ======================================
+
+  /**
+   * Scan maestro-ai-input folder for markdown files
+   */
+  private async scanInputFolderForMarkdown(): Promise<string | undefined> {
+    try {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        console.log("⚠️ Brain: No workspace folder found");
+        return undefined;
+      }
+
+      const maestroPath = vscode.Uri.joinPath(
+        workspaceFolder.uri,
+        "maestro-ai-input"
+      );
+
+      console.log(`🔍 Brain: Scanning input folder: ${maestroPath.fsPath}`);
+
+      try {
+        const files = await vscode.workspace.fs.readDirectory(maestroPath);
+        const markdownFiles = files
+          .filter(
+            ([name, type]) =>
+              type === vscode.FileType.File &&
+              name.toLowerCase().endsWith(".md")
+          )
+          .map(([name]) => vscode.Uri.joinPath(maestroPath, name).fsPath);
+
+        if (markdownFiles.length === 0) {
+          console.log("⚠️ Brain: No .md files found in maestro-ai-input");
+          return undefined;
+        }
+
+        // Prioritize phase files or return the most recent
+        const phaseFile = markdownFiles.find((file) => {
+          const fileName = path.basename(file).toLowerCase();
+          return (
+            fileName.includes("phase") ||
+            fileName.includes("parser") ||
+            fileName.includes("enhancement")
+          );
+        });
+
+        if (phaseFile) {
+          console.log(
+            `📄 Brain: Found priority file: ${path.basename(phaseFile)}`
+          );
+          return phaseFile;
+        }
+
+        const firstFile = markdownFiles[0];
+        console.log(`📄 Brain: Using file: ${path.basename(firstFile)}`);
+        return firstFile;
+      } catch (dirError) {
+        console.log(
+          "⚠️ Brain: maestro-ai-input folder not found or inaccessible"
+        );
+        return undefined;
+      }
+    } catch (error) {
+      console.error(`❌ Brain: Error scanning input folder: ${error}`);
+      return undefined;
+    }
+  }
+
+  /**
+   * Verify markdown file exists and is readable
+   */
+  private async verifyMarkdownFile(filePath: string): Promise<boolean> {
+    try {
+      const fileUri = vscode.Uri.file(filePath);
+      const stat = await vscode.workspace.fs.stat(fileUri);
+
+      if (stat.type !== vscode.FileType.File) {
+        console.error(`❌ Brain: ${filePath} is not a file`);
+        return false;
+      }
+
+      // Try to read a small portion to verify accessibility
+      const content = await vscode.workspace.fs.readFile(fileUri);
+      if (content.length === 0) {
+        console.warn(`⚠️ Brain: ${filePath} appears to be empty`);
+      }
+
+      console.log(
+        `✅ Brain: Verified markdown file: ${path.basename(filePath)} (${content.length} bytes)`
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `❌ Brain: Cannot access markdown file ${filePath}:`,
+        error
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Verify ZIP files in input folder
+   */
+  private async verifyZipFiles(): Promise<string[]> {
+    try {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        return [];
+      }
+
+      const maestroPath = vscode.Uri.joinPath(
+        workspaceFolder.uri,
+        "maestro-ai-input"
+      );
+
+      const files = await vscode.workspace.fs.readDirectory(maestroPath);
+      const zipFiles = files
+        .filter(
+          ([name, type]) =>
+            type === vscode.FileType.File && name.toLowerCase().endsWith(".zip")
+        )
+        .map(([name]) => vscode.Uri.joinPath(maestroPath, name).fsPath);
+
+      console.log(`🔍 Brain: Found ${zipFiles.length} ZIP files`);
+      return zipFiles;
+    } catch (error) {
+      console.error("❌ Brain: Error scanning for ZIP files:", error);
+      return [];
+    }
+  }
+
+  // ======================================
+  // 🔄 UTILITY METHODS
+  // ======================================
+
+  /**
+   * Convert OrchestrationResult to BuildPlan format for PopupResultsManager
+   */
+  private convertToBuildPlan(result: OrchestrationResult): BuildPlan {
+    return {
+      modules: result.filesCreated.map((file) => ({
+        name: file.name,
+        path: file.path,
+        dependencies: [],
+        complexity: "medium" as const,
+        priority: 1,
+        hasWebAudio: this.hasAudioModules(result),
+        hasCanvas: false,
+        hasSVG: this.hasSVGModules(result),
+        description: `Generated by ${file.handler}`,
+        moduleType: "component" as const,
+        templateSource: "generated" as const,
+      })),
+      buildOrder: result.delegates,
+      estimatedTime: result.metrics.totalTime,
+      dependencies: [],
+      conflicts: result.errors.map((e) => e.error),
+      processedSpecs: [],
+    };
+  }
+
+  private hasAudioModules(result: OrchestrationResult): boolean {
+    return result.filesCreated.some(
+      (file) =>
+        file.name.toLowerCase().includes("audio") ||
+        file.name.toLowerCase().includes("player")
+    );
+  }
+
+  private hasSVGModules(result: OrchestrationResult): boolean {
+    return result.filesCreated.some(
+      (file) =>
+        file.name.toLowerCase().includes("svg") ||
+        file.name.toLowerCase().includes("tab")
+    );
+  }
+
+  private async handleNextStepAction(
+    action: string,
+    result: OrchestrationResult
+  ): Promise<void> {
+    console.log(`🧠 Brain: Handling next step action: ${action}`);
+
+    switch (action) {
+      case "test_extension":
+        await vscode.commands.executeCommand("workbench.action.debug.start");
+        break;
+      case "test_audio":
+        await this.toastManager.showInfo(
+          "Testing audio components - check browser console for audio initialization"
+        );
+        break;
+      case "optimize_svg":
+        await this.toastManager.showInfo(
+          "SVG optimization suggestions available in output panel"
+        );
+        break;
+      case "configure_brain":
+        await this.toastManager.showInfo(
+          "Brain system integration guide coming soon"
+        );
+        break;
+      case "review_errors":
+        if (result.errors.length > 0) {
+          const errorDetails = result.errors
+            .map((e) => `• ${e.error}`)
+            .join("\n");
+          await this.toastManager.showError(`Build Errors:\n${errorDetails}`, {
+            modal: true,
+            title: "Build Error Review",
+          });
+        }
+        break;
+    }
+  }
+
+  /**
+   * Handle actions from toast notification buttons
+   */
+  private async handleToastAction(
+    action: string,
+    result: OrchestrationResult
+  ): Promise<void> {
+    console.log(`🧠 Brain: Handling toast action: ${action}`);
+
+    switch (action) {
+      case "view_results":
+        await this.toastManager.showInfo(
+          "Build results displayed in popup panel"
+        );
+        break;
+      case "test_extension":
+        await vscode.commands.executeCommand("workbench.action.debug.start");
+        await this.toastManager.showInfo(
+          "Extension host launched - test your modules!"
+        );
+        break;
+      case "test_module":
+        await this.toastManager.showInfo(
+          "Module testing - check browser dev console"
+        );
+        break;
+      case "open_file":
+        if (result.filesCreated.length > 0) {
+          const fileUri = vscode.Uri.file(result.filesCreated[0].path);
+          await vscode.window.showTextDocument(fileUri);
+        }
+        break;
+      case "show_next_steps":
+        const nextStepsText =
+          result.nextSteps?.join("\n• ") || "No next steps available";
+        await this.toastManager.showInfo(`Next Steps:\n• ${nextStepsText}`, {
+          modal: true,
+        });
+        break;
+      default:
+        console.log(`🧠 Brain: Unknown toast action: ${action}`);
+    }
+  }
+
+  private async handleDebugAction(
+    action: string,
+    errorResult: OrchestrationResult
+  ): Promise<void> {
+    console.log(`🧠 Brain: Handling debug action: ${action}`);
+
+    switch (action) {
+      case "retry_action":
+      case "retry_module":
+        await this.toastManager.showInfo("Retrying operation...");
+        break;
+      case "view_error_details":
+      case "view_details":
+        const errorDetails = errorResult.errors.map((e) => e.error).join("\n");
+        await this.toastManager.showError(errorDetails, {
+          title: "Error Details",
+          modal: true,
+        });
+        break;
+      case "check_permissions":
+        await this.toastManager.showInfo(
+          "Check file permissions manually - permission checker coming soon"
+        );
+        break;
+      case "reset_build":
+        await this.toastManager.showInfo(
+          "Build environment reset functionality coming soon"
+        );
+        break;
+    }
+  }
+
+  private async logToBrainSystem(result: OrchestrationResult): Promise<void> {
+    try {
+      const brainInterface = getBrainInterface();
+      if (brainInterface && isBrainAvailable()) {
+        await brainInterface.learnFromAction(
+          "orchestrator-pipeline",
+          result.success ? "success" : "failure",
+          {
+            delegates: result.delegates,
+            moduleCount: result.metrics.moduleCount,
+            totalTime: result.metrics.totalTime,
+            errorCount: result.errors.length,
+          }
+        );
+      }
+    } catch (error) {
+      console.warn("🧠 Brain: Failed to log to brain system:", error);
+    }
+  }
+}
+
+// ======================================
+// 📤 COMMAND REGISTRATION FUNCTIONS
+// ======================================
+
+/**
+ * Register Brain-routed commands (corrected architecture)
+ * ALL UI IS AUTOMATIC - NO SEPARATE COMMANDS FOR RESULTS/LOGS/EVOLUTION
+ */
+export function registerOrchestratorCommands(
+  context: vscode.ExtensionContext
+): void {
+  const orchestrator = OrchestratorBrainSystem.getInstance();
+
+  // ======================================
+  // 🔄 CORE BRAIN COMMANDS (UI is automatic)
+  // ======================================
+
+  // Main workflow: cipher.buildMaestroGuitarModules → Brain Markdown Pipeline
+  const buildCommand = vscode.commands.registerCommand(
+    "cipher.buildMaestroGuitarModules",
+    async () => {
+      console.log(
+        "🎯 Command: buildMaestroGuitarModules → Brain Markdown Pipeline"
+      );
+      await orchestrator.executeMarkdownToModulePipeline(undefined, {
+        command: "build-modules",
+        source: "markdown",
+        sessionId: Date.now().toString(),
+      });
+    }
+  );
+
+  // Full ZIP workflow: cipher.maestroGuitarPipeline → Brain ZIP Pipeline
+  const fullPipelineCommand = vscode.commands.registerCommand(
+    "cipher.maestroGuitarPipeline",
+    async () => {
+      console.log(
+        "🎯 Command: maestroGuitarPipeline → Brain ZIP Pipeline (Complete)"
+      );
+      await orchestrator.executeZipToModulePipeline({
+        command: "full-pipeline",
+        source: "zip",
+        scope: "complete",
+        sessionId: Date.now().toString(),
+      });
+    }
+  );
+
+  // Auto ZIP workflow: cipher.autoProcessMaestroInput → Brain ZIP Pipeline
+  const autoProcessCommand = vscode.commands.registerCommand(
+    "cipher.autoProcessMaestroInput",
+    async () => {
+      console.log(
+        "🎯 Command: autoProcessMaestroInput → Brain ZIP Pipeline (Auto)"
+      );
+      await orchestrator.executeZipToModulePipeline({
+        command: "auto-process",
+        source: "zip",
+        scope: "basic",
+        sessionId: Date.now().toString(),
+      });
+    }
+  );
+
+  // ======================================
+  // 🛠️ UTILITY COMMANDS (Testing only)
+  // ======================================
+
+  // Manual UI test (for development/testing only)
+  const showResultsCommand = vscode.commands.registerCommand(
+    "cipher.showOrchestratorResults",
+    async () => {
+      console.log("🧠 Brain: Manual UI test command triggered");
+      const sampleBuildPlan: BuildPlan = {
+        modules: [
+          {
+            name: "Sample Test Module",
+            path: "/sample/test/path",
+            dependencies: [],
+            complexity: "medium",
+            priority: 1,
+            hasWebAudio: true,
+            hasCanvas: false,
+            hasSVG: true,
+            description: "Sample module for testing Brain UI systems",
+            moduleType: "component",
+            templateSource: "generated",
+          },
+        ],
+        buildOrder: ["OrchestratorBrainSystem", "TestHandler"],
+        estimatedTime: 3,
+        dependencies: ["@types/vscode", "typescript"],
+        conflicts: [],
+        processedSpecs: ["sample-spec.md"],
+      };
+      await orchestrator.popupManager.displayBuildResults(sampleBuildPlan);
+    }
+  );
+
+  // Register all commands with context
+  context.subscriptions.push(
+    buildCommand,
+    fullPipelineCommand,
+    autoProcessCommand,
+    showResultsCommand
+  );
+
+  console.log("🧠 Orchestrator commands registered successfully");
+  console.log("📋 Active Brain-routed commands:");
+  console.log(
+    "  🔄 cipher.buildMaestroGuitarModules (→ Markdown Pipeline + Auto UI)"
+  );
+  console.log("  🔄 cipher.maestroGuitarPipeline (→ ZIP Pipeline + Auto UI)");
+  console.log("  🔄 cipher.autoProcessMaestroInput (→ ZIP Pipeline + Auto UI)");
+  console.log("  🛠️ cipher.showOrchestratorResults (→ Manual UI Test)");
+  console.log("✨ All UI (results/logs/evolution) displays AUTOMATICALLY");
+}
+
+// ======================================
+// 📤 EXPORTS
+// ======================================
+
+export const orchestratorBrain = OrchestratorBrainSystem.getInstance();
+export default OrchestratorBrainSystem;
