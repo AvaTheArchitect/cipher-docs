@@ -1,0 +1,1041 @@
+  // 🎪 Popup Results Window Management
+// Extracted from maestroGuitarModuleBuilder for Brain system integration
+ 
+import * as vscode from 'vscode';
+import { displayBrainSuggestions } from '../../../shared/displayUtils';
+
+// ======================================
+// 📊 INTERFACES
+// ======================================
+
+export interface BuildPlan {
+  modules: Array<{
+    name: string;
+    path: string;
+    dependencies: string[];
+    complexity: 'low' | 'medium' | 'high';
+    priority: number;
+    hasWebAudio: boolean;
+    hasCanvas: boolean;
+    hasSVG: boolean;
+    description: string;
+    moduleType: 'component' | 'hook' | 'util' | 'test' | 'engine' | 'worklet';
+    templateSource?: 'spec' | 'starter' | 'rich' | 'generated';
+    isUpdate?: boolean;
+  }>;
+  buildOrder: string[];
+  estimatedTime: number;
+  dependencies: string[];
+  conflicts: string[];
+  processedSpecs: string[];
+}
+
+export interface PopupResultsOptions {
+  showInModal?: boolean;
+  includeNextSteps?: boolean;
+  includeBrainSuggestions?: boolean;
+  autoClose?: boolean;
+  theme?: 'default' | 'success' | 'warning' | 'error';
+}
+
+// ======================================
+// 🎪 POPUP RESULTS MANAGER
+// ======================================
+
+export class PopupResultsManager {
+  private static instance: PopupResultsManager;
+  private outputChannel: vscode.OutputChannel;
+
+  constructor() {
+    this.outputChannel = vscode.window.createOutputChannel('Cipher Build Results');
+  }
+
+  public static getInstance(): PopupResultsManager {
+    if (!PopupResultsManager.instance) {
+      PopupResultsManager.instance = new PopupResultsManager();
+    }
+    return PopupResultsManager.instance;
+  }
+
+  /**
+   * Main method to display build results - extracted from maestroGuitarModuleBuilder
+   */
+  public async displayBuildResults(
+    buildPlan: BuildPlan, 
+    options: PopupResultsOptions = {}
+  ): Promise<void> {
+    const {
+      showInModal = true,
+      includeNextSteps = true,
+      includeBrainSuggestions = true,
+      autoClose = false,
+      theme = 'success'
+    } = options;
+
+    console.log('🎪 Displaying build results popup...');
+
+    // Create HTML content for the results popup
+    const htmlContent = this.generateResultsHTML(buildPlan, {
+      includeNextSteps,
+      theme
+    });
+
+    if (showInModal) {
+      await this.showResultsModal(htmlContent, buildPlan, autoClose);
+    } else {
+      await this.showResultsPanel(htmlContent, buildPlan);
+    }
+
+    // Show brain suggestions if enabled
+    if (includeBrainSuggestions) {
+      await this.displayBrainSuggestionsForResults(buildPlan);
+    }
+
+    // Log results to output channel
+    this.logResultsToChannel(buildPlan);
+  }
+
+  /**
+   * Generate HTML content for results display
+   */
+  private generateResultsHTML(
+    buildPlan: BuildPlan,
+    options: { includeNextSteps: boolean; theme: string }
+  ): string {
+    const { modules, buildOrder, estimatedTime, dependencies, conflicts } = buildPlan;
+    const { includeNextSteps, theme } = options;
+
+    const themeColors = this.getThemeColors(theme);
+    const successCount = modules.filter(m => !conflicts.some(c => c.includes(m.name))).length;
+    const conflictCount = conflicts.length;
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎸 Maestro Build Results</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; 
+            padding: 20px;
+            background: linear-gradient(135deg, ${themeColors.background});
+            color: ${themeColors.text};
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: ${themeColors.cardBackground};
+            border-radius: 16px;
+            box-shadow: 0 8px 32px ${themeColors.shadow};
+            backdrop-filter: blur(10px);
+            border: 1px solid ${themeColors.border};
+            overflow: hidden;
+        }
+        .header {
+            background: ${themeColors.headerBackground};
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid ${themeColors.border};
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.2em;
+            font-weight: 600;
+            background: ${themeColors.titleGradient};
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 24px;
+            background: ${themeColors.statsBackground};
+        }
+        .stat-card {
+            background: ${themeColors.cardBackground};
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid ${themeColors.border};
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px ${themeColors.shadow};
+        }
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 8px 0;
+            color: ${themeColors.accent};
+        }
+        .modules-list {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .module-item {
+            background: ${themeColors.moduleBackground};
+            margin: 12px 0;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid ${themeColors.accent};
+            transition: all 0.2s ease;
+        }
+        .module-item:hover {
+            background: ${themeColors.moduleHover};
+            transform: translateX(4px);
+        }
+        .module-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: ${themeColors.moduleTitle};
+            margin-bottom: 8px;
+        }
+        .module-details {
+            font-size: 0.9em;
+            color: ${themeColors.moduleDetails};
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .complexity-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .complexity-low { background: #d4edda; color: #155724; }
+        .complexity-medium { background: #fff3cd; color: #856404; }
+        .complexity-high { background: #f8d7da; color: #721c24; }
+        .conflicts {
+            background: ${themeColors.warningBackground};
+            margin: 16px 24px;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid ${themeColors.warningBorder};
+        }
+        .next-steps {
+            background: ${themeColors.infoBackground};
+            margin: 16px 24px;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid ${themeColors.infoBorder};
+        }
+        .next-steps h3 {
+            margin-top: 0;
+            color: ${themeColors.infoTitle};
+        }
+        .next-steps ul {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        .footer {
+            background: ${themeColors.footerBackground};
+            padding: 20px 24px;
+            text-align: center;
+            border-top: 1px solid ${themeColors.border};
+            color: ${themeColors.footerText};
+        }
+        .brain-indicator {
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎸 Maestro Build Results</h1>
+            <p>Guitar Module Generation Complete</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${successCount}</div>
+                <div>Modules Built</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${conflictCount}</div>
+                <div>Conflicts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${estimatedTime}s</div>
+                <div>Build Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${dependencies.length}</div>
+                <div>Dependencies</div>
+            </div>
+        </div>
+        
+        ${conflictCount > 0 ? `
+        <div class="conflicts">
+            <h3>⚠️ Build Conflicts (${conflictCount})</h3>
+            <ul>
+                ${conflicts.map(conflict => `<li>${conflict}</li>`).join('')}
+            </ul>
+        </div>
+        ` : ''}
+        
+        <div class="modules-list">
+            <h3 style="padding: 0 8px; color: ${themeColors.sectionTitle};">Generated Modules (${successCount})</h3>
+            ${modules.map(module => `
+                <div class="module-item">
+                    <div class="module-name">${module.name}</div>
+                    <div class="module-details">
+                        <div><strong>Type:</strong> ${module.moduleType}</div>
+                        <div><strong>Source:</strong> ${module.templateSource || 'generated'}</div>
+                        <div><strong>Complexity:</strong> 
+                            <span class="complexity-badge complexity-${module.complexity}">
+                                ${module.complexity}
+                            </span>
+                        </div>
+                        <div><strong>Features:</strong> 
+                            ${module.hasWebAudio ? '🎵 Audio' : ''} 
+                            ${module.hasSVG ? '🎨 SVG' : ''} 
+                            ${module.hasCanvas ? '🖼️ Canvas' : ''}
+                            ${module.isUpdate ? '🔄 Update' : '✨ New'}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        ${includeNextSteps ? `
+        <div class="next-steps">
+            <h3>🎯 Next Steps</h3>
+            <ul>
+                <li>🧪 <strong>Test the generated modules:</strong> Press F5 to launch the extension host and test your new components</li>
+                <li>🎨 <strong>Customize the styling:</strong> Add your own CSS classes and styles to match your design system</li>
+                <li>🔗 <strong>Connect to audio engine:</strong> Wire up the Web Audio API connections for real-time audio processing</li>
+                <li>📱 <strong>Add mobile support:</strong> Test and optimize the components for touch interactions</li>
+                <li>🧠 <strong>Integrate with Brain system:</strong> Connect components to the Maestro.ai intelligence layer</li>
+                <li>📊 <strong>Monitor performance:</strong> Use browser dev tools to optimize rendering and audio latency</li>
+                <li>🎸 <strong>Practice with real tabs:</strong> Load your own guitar tablature files for practice sessions</li>
+            </ul>
+        </div>
+        ` : ''}
+        
+        <div class="footer">
+            <p>
+                <span class="brain-indicator">🧠</span> 
+                Generated by Cipher Maestro Builder with Brain Intelligence
+            </p>
+            <p style="font-size: 0.9em; opacity: 0.8;">
+                Build completed at ${new Date().toLocaleTimeString()} | 
+                Modules ready for Maestro.ai integration
+            </p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Show results in a modal window
+   */
+  private async showResultsModal(
+    htmlContent: string, 
+    buildPlan: BuildPlan, 
+    autoClose: boolean
+  ): Promise<void> {
+    const panel = vscode.window.createWebviewPanel(
+      'maestroBuildResults',
+      '🎸 Maestro Build Results',
+      vscode.ViewColumn.Beside,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true
+      }
+    );
+
+    panel.webview.html = htmlContent;
+
+    // Auto-close after delay if requested
+    if (autoClose) {
+      setTimeout(() => {
+        panel.dispose();
+      }, 10000); // 10 seconds
+    }
+
+    // Handle panel disposal
+    panel.onDidDispose(() => {
+      console.log('🎪 Build results panel closed');
+    });
+  }
+
+  /**
+   * Show results in output panel
+   */
+  private async showResultsPanel(
+    htmlContent: string,
+    buildPlan: BuildPlan
+  ): Promise<void> {
+    this.outputChannel.clear();
+    this.outputChannel.appendLine('🎸 MAESTRO BUILD RESULTS');
+    this.outputChannel.appendLine('=========================');
+    this.outputChannel.appendLine('');
+    this.outputChannel.appendLine(`✅ Successfully built ${buildPlan.modules.length} modules`);
+    this.outputChannel.appendLine(`⏱️  Total build time: ${buildPlan.estimatedTime}s`);
+    this.outputChannel.appendLine(`📦 Dependencies: ${buildPlan.dependencies.length}`);
+    this.outputChannel.appendLine(`⚠️  Conflicts: ${buildPlan.conflicts.length}`);
+    this.outputChannel.appendLine('');
+    
+    buildPlan.modules.forEach((module, index) => {
+      this.outputChannel.appendLine(`${index + 1}. ${module.name} (${module.moduleType})`);
+      this.outputChannel.appendLine(`   Path: ${module.path}`);
+      this.outputChannel.appendLine(`   Complexity: ${module.complexity} | Source: ${module.templateSource || 'generated'}`);
+      this.outputChannel.appendLine('');
+    });
+
+    this.outputChannel.show();
+  }
+
+  /**
+   * Display Brain suggestions for the build results
+   */
+  private async displayBrainSuggestionsForResults(buildPlan: BuildPlan): Promise<void> {
+    try {
+      const suggestions = this.generateBrainSuggestions(buildPlan);
+      await displayBrainSuggestions(suggestions);
+    } catch (error) {
+      console.warn('Could not display brain suggestions:', error);
+    }
+  }
+
+  /**
+   * Generate intelligent suggestions based on build results
+   */
+  private generateBrainSuggestions(buildPlan: BuildPlan): Array<{
+    title: string;
+    description: string;
+    action: string;
+    priority: 'high' | 'medium' | 'low';
+  }> {
+    const suggestions: Array<{
+      title: string;
+      description: string;
+      action: string;
+      priority: 'high' | 'medium' | 'low';
+    }> = [];
+
+    // Analyze build plan and generate contextual suggestions
+    const hasAudioModules = buildPlan.modules.some(m => m.hasWebAudio);
+    const hasSVGModules = buildPlan.modules.some(m => m.hasSVG);
+    const hasHighComplexity = buildPlan.modules.some(m => m.complexity === 'high');
+    const hasConflicts = buildPlan.conflicts.length > 0;
+
+    if (hasConflicts) {
+      suggestions.push({
+        title: '⚠️ Resolve Build Conflicts',
+        description: `${buildPlan.conflicts.length} conflicts detected. Review and resolve before testing.`,
+        action: 'resolve-conflicts',
+        priority: 'high'
+      });
+    }
+
+    if (hasAudioModules) {
+      suggestions.push({
+        title: '🎵 Test Audio Components',
+        description: 'Audio modules generated. Test with headphones for best experience.',
+        action: 'test-audio',
+        priority: 'high'
+      });
+    }
+
+    if (hasSVGModules) {
+      suggestions.push({
+        title: '🎨 Optimize SVG Performance', 
+        description: 'SVG components created. Consider performance optimization for large tablatures.',
+        action: 'optimize-svg',
+        priority: 'medium'
+      });
+    }
+
+    if (hasHighComplexity) {
+      suggestions.push({
+        title: '🧪 Extended Testing Required',
+        description: 'High complexity modules need thorough testing across different browsers.',
+        action: 'extended-testing',
+        priority: 'medium'
+      });
+    }
+
+    // Always include next steps suggestion
+    suggestions.push({
+      title: '🚀 Launch Extension Host',
+      description: 'Press F5 to test your new modules in a development environment.',
+      action: 'launch-extension',
+      priority: 'high'
+    });
+
+    return suggestions;
+  }
+
+  /**
+   * Log results to output channel for debugging
+   */
+  private logResultsToChannel(buildPlan: BuildPlan): void {
+    console.log('🎪 Build Results Summary:');
+    console.log(`   Modules: ${buildPlan.modules.length}`);
+    console.log(`   Dependencies: ${buildPlan.dependencies.length}`);
+    console.log(`   Conflicts: ${buildPlan.conflicts.length}`);
+    console.log(`   Build Order: ${buildPlan.buildOrder.join(' → ')}`);
+    console.log(`   Estimated Time: ${buildPlan.estimatedTime}s`);
+  }
+
+  /**
+   * Get theme colors for different result types
+   */
+  private getThemeColors(theme: string): Record<string, string> {
+    const themes = {
+      default: {
+        background: '#1e1e2e, #313244',
+        cardBackground: 'rgba(49, 50, 68, 0.8)',
+        text: '#cdd6f4',
+        border: 'rgba(137, 142, 204, 0.3)',
+        headerBackground: 'rgba(30, 30, 46, 0.9)',
+        titleGradient: 'linear-gradient(45deg, #89b4fa, #cba6f7)',
+        accent: '#89b4fa',
+        shadow: 'rgba(0, 0, 0, 0.3)',
+        statsBackground: 'rgba(17, 17, 27, 0.5)',
+        moduleBackground: 'rgba(69, 71, 90, 0.6)',
+        moduleHover: 'rgba(88, 91, 112, 0.8)',
+        moduleTitle: '#f2f4f8',
+        moduleDetails: '#bac2de',
+        sectionTitle: '#fab387',
+        warningBackground: 'rgba(250, 179, 135, 0.2)',
+        warningBorder: 'rgba(250, 179, 135, 0.5)',
+        infoBackground: 'rgba(137, 180, 250, 0.2)',
+        infoBorder: 'rgba(137, 180, 250, 0.5)',
+        infoTitle: '#89b4fa',
+        footerBackground: 'rgba(17, 17, 27, 0.8)',
+        footerText: '#a6adc8'
+      },
+      success: {
+        background: '#0f2027, #203a43, #2c5530',
+        cardBackground: 'rgba(32, 58, 67, 0.8)',
+        text: '#e8f5e8',
+        border: 'rgba(52, 168, 83, 0.3)',
+        headerBackground: 'rgba(15, 32, 39, 0.9)',
+        titleGradient: 'linear-gradient(45deg, #34a853, #4caf50)',
+        accent: '#34a853',
+        shadow: 'rgba(0, 0, 0, 0.4)',
+        statsBackground: 'rgba(15, 32, 39, 0.6)',
+        moduleBackground: 'rgba(44, 85, 48, 0.6)',
+        moduleHover: 'rgba(56, 108, 61, 0.8)',
+        moduleTitle: '#ffffff',
+        moduleDetails: '#c8e6c9',
+        sectionTitle: '#81c784',
+        warningBackground: 'rgba(255, 193, 7, 0.2)',
+        warningBorder: 'rgba(255, 193, 7, 0.5)',
+        infoBackground: 'rgba(52, 168, 83, 0.2)',
+        infoBorder: 'rgba(52, 168, 83, 0.5)',
+        infoTitle: '#4caf50',
+        footerBackground: 'rgba(15, 32, 39, 0.9)',
+        footerText: '#a5d6a7'
+      }
+    };
+
+    return themes[theme as keyof typeof themes] || themes.default;
+  }
+
+     /**
+   * Create quick results summary for toast notifications
+   */
+  public createResultsSummary(buildPlan: BuildPlan): string {
+    const { modules, conflicts } = buildPlan;
+    const successCount = modules.filter(m => !conflicts.some(c => c.includes(m.name))).length;
+    
+    if (conflicts.length > 0) {
+      return `Built ${successCount} modules with ${conflicts.length} conflicts`;
+    }
+    return `Successfully built ${successCount} modules`;
+  }
+}
+
+
+// 🍞 Toast Notifications Management
+
+// Extracted from maestroGuitarModuleBuilder for centralized notification handling
+
+// ======================================
+// 📨 INTERFACES
+// ======================================
+
+export interface ToastOptions {
+  title?: string;
+  modal?: boolean;
+  timeout?: number;
+  buttons?: Array<{ title: string; action: string; isCloseAffordance?: boolean }>;
+  showProgress?: boolean;
+  location?: vscode.ProgressLocation;
+}
+
+export type ToastType = 'info' | 'warning' | 'error' | 'success';
+
+// ======================================
+// 🍞 TOAST NOTIFICATIONS MANAGER
+// ======================================
+
+export class ToastNotificationsManager {
+  private static instance: ToastNotificationsManager;
+  private activeToasts: Map<string, vscode.Disposable> = new Map();
+
+  public static getInstance(): ToastNotificationsManager {
+    if (!ToastNotificationsManager.instance) {
+      ToastNotificationsManager.instance = new ToastNotificationsManager();
+    }
+    return ToastNotificationsManager.instance;
+  }
+
+  /**
+   * Show success toast notification
+   */
+  public async showSuccess(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`✅ Success: ${message}`);
+    
+    const finalMessage = options.title ? `${options.title}: ${message}` : message;
+    
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map(b => b.title);
+      const selection = await vscode.window.showInformationMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+      
+      if (selection) {
+        const selectedButton = options.buttons.find(b => b.title === selection);
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showInformationMessage(finalMessage);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Show info toast notification
+   */
+  public async showInfo(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`ℹ️ Info: ${message}`);
+    
+    const finalMessage = options.title ? `${options.title}: ${message}` : message;
+    
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map(b => b.title);
+      const selection = await vscode.window.showInformationMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+      
+      if (selection) {
+        const selectedButton = options.buttons.find(b => b.title === selection);
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showInformationMessage(finalMessage);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Show warning toast notification
+   */
+  public async showWarning(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`⚠️ Warning: ${message}`);
+    
+    const finalMessage = options.title ? `${options.title}: ${message}` : message;
+    
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map(b => b.title);
+      const selection = await vscode.window.showWarningMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+      
+      if (selection) {
+        const selectedButton = options.buttons.find(b => b.title === selection);
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showWarningMessage(finalMessage);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Show error toast notification
+   */
+  public async showError(
+    message: string,
+    options: ToastOptions = {}
+  ): Promise<string | undefined> {
+    console.log(`❌ Error: ${message}`);
+    
+    const finalMessage = options.title ? `${options.title}: ${message}` : message;
+    
+    if (options.buttons && options.buttons.length > 0) {
+      const buttonTitles = options.buttons.map(b => b.title);
+      const selection = await vscode.window.showErrorMessage(
+        finalMessage,
+        { modal: options.modal || false },
+        ...buttonTitles
+      );
+      
+      if (selection) {
+        const selectedButton = options.buttons.find(b => b.title === selection);
+        return selectedButton?.action;
+      }
+    } else {
+      await vscode.window.showErrorMessage(finalMessage);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Show progress notification with toast
+   */
+  public async showWithProgress<T>(
+    title: string,
+    task: (progress: vscode.Progress<{ increment?: number; message?: string }>) => Promise<T>,
+    options: ToastOptions = {}
+  ): Promise<T> {
+    const location = options.location || vscode.ProgressLocation.Notification;
+    
+    return vscode.window.withProgress({
+      location,
+      title,
+      cancellable: false
+    }, async (progress) => {
+      return await task(progress);
+    });
+  }
+
+  /**
+   * Show build progress with detailed updates
+   */
+  public async showBuildProgress(
+    modules: Array<{ name: string; path: string }>,
+    buildFunction: (
+      module: { name: string; path: string },
+      progress: vscode.Progress<{ increment?: number; message?: string }>
+    ) => Promise<void>
+  ): Promise<void> {
+    await this.showWithProgress(
+      'Building Maestro Guitar Modules...',
+      async (progress) => {
+        const increment = 100 / modules.length;
+        
+        for (let i = 0; i < modules.length; i++) {
+          const module = modules[i];
+          progress.report({
+            increment: i === 0 ? 0 : increment,
+            message: `Building ${module.name}... (${i + 1}/${modules.length})`
+          });
+          
+          await buildFunction(module, progress);
+        }
+        
+        progress.report({
+          increment: increment,
+          message: 'Build complete!'
+        });
+      },
+      { location: vscode.ProgressLocation.Notification }
+    );
+  }
+
+  /**
+   * Bulk toast notifications for multiple results
+   */
+  public async showBulkResults(
+    results: Array<{
+      type: ToastType;
+      message: string;
+      module?: string;
+    }>,
+    options: { 
+      showSummary?: boolean;
+      maxIndividual?: number;
+    } = {}
+  ): Promise<void> {
+    const { showSummary = true, maxIndividual = 5 } = options;
+    
+    // Show individual toasts up to limit
+    const toShow = results.slice(0, maxIndividual);
+    const remaining = results.length - toShow.length;
+    
+    for (const result of toShow) {
+      const message = result.module 
+        ? `${result.module}: ${result.message}`
+        : result.message;
+        
+      switch (result.type) {
+        case 'success':
+          await this.showSuccess(message);
+          break;
+        case 'info':
+          await this.showInfo(message);
+          break;
+        case 'warning':
+          await this.showWarning(message);
+          break;
+        case 'error':
+          await this.showError(message);
+          break;
+      }
+      
+      // Small delay between toasts
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Show summary if there are more results
+    if (remaining > 0 && showSummary) {
+      const successCount = results.filter(r => r.type === 'success').length;
+      const errorCount = results.filter(r => r.type === 'error').length;
+      const warningCount = results.filter(r => r.type === 'warning').length;
+      
+      let summaryMessage = `Build complete: ${successCount} successful`;
+      if (errorCount > 0) summaryMessage += `, ${errorCount} errors`;
+      if (warningCount > 0) summaryMessage += `, ${warningCount} warnings`;
+      if (remaining > 0) summaryMessage += ` (+${remaining} more)`;
+      
+      if (errorCount > 0) {
+        await this.showWarning(summaryMessage);
+      } else {
+        await this.showSuccess(summaryMessage);
+      }
+    }
+  }
+
+  /**
+   * Show smart contextual notifications based on build state
+   */
+  public async showContextualNotification(
+    context: {
+      action: string;
+      success: boolean;
+      moduleName?: string;
+      filePath?: string;
+      error?: Error;
+      duration?: number;
+      nextSteps?: string[];
+    }
+  ): Promise<string | undefined> {
+    const { action, success, moduleName, filePath, error, duration, nextSteps } = context;
+    
+    let message = '';
+    let buttons: Array<{ title: string; action: string }> = [];
+    
+    // Generate contextual message
+    if (success) {
+      switch (action) {
+        case 'module_built':
+          message = moduleName 
+            ? `Module "${moduleName}" built successfully`
+            : 'Module built successfully';
+          
+          buttons = [
+            { title: 'Open File', action: 'open_file' },
+            { title: 'Test Module', action: 'test_module' }
+          ];
+          break;
+          
+        case 'build_complete':
+          message = duration 
+            ? `Build completed in ${duration}s`
+            : 'Build completed successfully';
+          
+          buttons = [
+            { title: 'View Results', action: 'view_results' },
+            { title: 'Test Extension', action: 'test_extension' }
+          ];
+          break;
+          
+        case 'file_created':
+          message = filePath 
+            ? `File created: ${filePath.split('/').pop()}`
+            : 'File created successfully';
+          
+          buttons = [
+            { title: 'Open', action: 'open_file' }
+          ];
+          break;
+          
+        default:
+          message = `${action} completed successfully`;
+      }
+      
+      // Add next steps if provided
+      if (nextSteps && nextSteps.length > 0) {
+        buttons.push({ title: 'Next Steps', action: 'show_next_steps' });
+      }
+      
+      return await this.showSuccess(message, { buttons });
+      
+    } else {
+      // Handle error cases
+      const errorMessage = error?.message || 'Unknown error occurred';
+      
+      switch (action) {
+        case 'module_build':
+          message = moduleName 
+            ? `Failed to build module "${moduleName}": ${errorMessage}`
+            : `Module build failed: ${errorMessage}`;
+          break;
+          
+        case 'file_creation':
+          message = `File creation failed: ${errorMessage}`;
+          break;
+          
+        default:
+          message = `${action} failed: ${errorMessage}`;
+      }
+      
+      buttons = [
+        { title: 'View Details', action: 'view_error_details' },
+        { title: 'Retry', action: 'retry_action' }
+      ];
+      
+      return await this.showError(message, { buttons });
+    }
+  }
+
+  /**
+   * Toast notifications specifically for extracted scenarios from maestroGuitarModuleBuilder
+   */
+  public async showMaestroNotifications() {
+    return {
+      // Brain connection notifications
+      brainConnected: () => this.showSuccess('Brain connected - applying intelligence'),
+      brainDisconnected: () => this.showWarning('Brain not connected - proceeding without intelligence'),
+      
+      // Protection notifications  
+      protectionActive: () => this.showSuccess('Protection applied: Active'),
+      protectionFailed: () => this.showError('Protection applied: Failed'),
+      
+      // Build notifications
+      buildStarted: (moduleCount: number) => 
+        this.showInfo(`Starting Maestro.ai Guitar Practice module generation... (${moduleCount} modules)`),
+      
+      buildProgress: (current: number, total: number, moduleName: string) =>
+        this.showInfo(`Building ${moduleName}... (${current}/${total})`),
+      
+      buildCompleted: (moduleCount: number, duration: number) =>
+        this.showSuccess(`Build completed: ${moduleCount} modules in ${duration}s`, {
+          buttons: [
+            { title: 'View Results', action: 'view_results' },
+            { title: 'Test Extension', action: 'test_extension' }
+          ]
+        }),
+      
+      // Module-specific notifications
+      moduleBuilt: (moduleName: string, filePath: string) =>
+        this.showSuccess(`${moduleName} built successfully`, {
+          buttons: [
+            { title: 'Open File', action: 'open_file' },
+            { title: 'Run Tests', action: 'run_tests' }
+          ]
+        }),
+      
+      moduleUpdated: (moduleName: string) =>
+        this.showInfo(`${moduleName} updated with new features`, {
+          buttons: [
+            { title: 'View Changes', action: 'view_changes' }
+          ]
+        }),
+      
+      // Conflict notifications
+      conflictsDetected: (conflictCount: number) =>
+        this.showWarning(`${conflictCount} conflicts detected`, {
+          buttons: [
+            { title: 'Resolve', action: 'resolve_conflicts' },
+            { title: 'View Details', action: 'view_conflicts' }
+          ]
+        }),
+      
+      // Cleanup notifications
+      cleanupCompleted: (fileCount: number) =>
+        this.showInfo(`Cleaned up ${fileCount} processed spec files`),
+      
+      // Index update notifications
+      indexUpdated: (folderName: string) =>
+        this.showInfo(`Updated index.ts in ${folderName}/`),
+      
+      // Backup notifications
+      backupCreated: (moduleName: string) =>
+        this.showInfo(`Backup created for ${moduleName}`, {
+          buttons: [
+            { title: 'View Backup', action: 'view_backup' }
+          ]
+        }),
+      
+      // SVG/Audio specific notifications
+      svgComponentCreated: () =>
+        this.showSuccess('SVG interactive component created', {
+          buttons: [
+            { title: 'Test Interactive Features', action: 'test_svg' }
+          ]
+        }),
+      
+      audioEngineReady: () =>
+        this.showSuccess('Audio engine initialized', {
+          buttons: [
+            { title: 'Test Audio', action: 'test_audio' }
+          ]
+        })
+    };
+  }
+
+  /**
+   * Clear all active toast notifications
+   */
+  public clearAllToasts(): void {
+    this.activeToasts.forEach(disposable => {
+      disposable.dispose();
+    });
+    this.activeToasts.clear();
+  }
+
+  /**
+   * Dispose of the manager
+   */
+  public dispose(): void {
+    this.clearAllToasts();
+  }
+}
+
